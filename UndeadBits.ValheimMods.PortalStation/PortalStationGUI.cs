@@ -5,9 +5,12 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace UndeadBits.ValheimMods.PortalStation {
+    
+    /// <summary>
+    /// GUI which lets the user rename a station or teleport to other ones.
+    /// </summary>
     public class PortalStationGUI : UIElementBase, ICancelHandler {
         private const float GUI_UPDATE_INTERVAL = 0.1f;
-        private const float PORTAL_EXIT_DISTANCE = 1.0f;
 
         private readonly LinkedList<DestinationItem> destinationItems = new LinkedList<DestinationItem>();
 
@@ -33,10 +36,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
             
             this.destinationItems.Clear();
+
+            PortalStationPlugin.Instance.RequestPortalStationDestinationsFromServer();
             
             ResetStationName();
             UpdateDestinationItems();
-            
+
             GUIManager.BlockInput(true);
         }
 
@@ -78,7 +83,16 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 this.stationNameInput.onEndEdit.AddListener(OnEndEdit);
             }
 
+            PortalStationPlugin.Instance.ChangeDestinations.AddListener(OnChangeDestinations);
             InvokeRepeating(nameof(UpdateGUIVisibility), GUI_UPDATE_INTERVAL, GUI_UPDATE_INTERVAL);
+        }
+
+        private void OnChangeDestinations() {
+            if (!this.currentUser || !this.currentPortalStation || !this.gameObject.activeInHierarchy) {
+                return;
+            }
+            
+            UpdateDestinationItems();
         }
 
         /// <summary>
@@ -118,17 +132,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             var view = this.currentPortalStation.GetComponent<ZNetView>();
             if (!view || !view.IsValid()) {
                 Close();
-                return;
-            }
-
-            foreach (var item in this.destinationItems) {
-                var stationZDO = item.StationZDO;
-                if (stationZDO == null || stationZDO.IsValid()) {
-                    continue;
-                }
-                
-                UpdateDestinationItems();
-                break;
             }
         }
         
@@ -149,15 +152,15 @@ namespace UndeadBits.ValheimMods.PortalStation {
             var stationCount = 0;
             var itemListHead = this.destinationItems.First;
 
-            foreach (var zdo in PortalStationPlugin.Instance.GetPortalStationZDOs()) {
-                if (!zdo.IsValid() || zdo == self) {
+            foreach (var destination in PortalStationPlugin.Instance.AvailableDestinations) {
+                if (destination.id == self.m_uid) {
                     continue;
                 }
 
                 var destinationItem = itemListHead?.Value;
                 if (destinationItem == null) {
                     destinationItem = PortalStationPlugin.Instance.CreateDestinationItem(this.destinationItemListRoot);
-                    destinationItem.onClick.AddListener(this.OnRequestTeleportation);
+                    destinationItem.onClick.AddListener(OnRequestTeleportation);
                     
                     this.destinationItems.AddLast(destinationItem);
                 } else {
@@ -165,7 +168,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 }
 
                 stationCount++;
-                destinationItem.StationZDO = zdo;
+                destinationItem.Destination = destination;
             }
 
             while (this.destinationItems.Count > stationCount) {
@@ -178,9 +181,9 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// Teleports the given user to this portal.
         /// </summary>
-        /// <param name="stationZDO">The station to teleport to</param>
-        private void OnRequestTeleportation(ZDO stationZDO) {
-            if (!this.currentUser || stationZDO == null) {
+        /// <param name="destination">The destination to teleport to</param>
+        private void OnRequestTeleportation(PortalStation.Destination destination) {
+            if (!this.currentUser) {
                 return;
             }
             
@@ -193,15 +196,11 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 this.currentUser.Message(MessageHud.MessageType.Center, "$msg_noteleport");
                 return;
             }
-            
-            var position = stationZDO.GetPosition();
-            var rotation = stationZDO.GetRotation();
-            var vector = rotation * Vector3.forward;
-            var pos = position + vector * PORTAL_EXIT_DISTANCE + Vector3.up;
-            var distance = Vector3.Distance(this.currentUser.transform.position, pos);
+
+            var distance = Vector3.Distance(this.currentUser.transform.position, destination.position);
             var distant = distance >= ZoneSystem.instance.m_zoneSize;
             
-            this.currentUser.TeleportTo(pos, rotation, distant);
+            this.currentUser.TeleportTo(destination.position, destination.rotation, distant);
             Close();
         }
 

@@ -57,13 +57,24 @@ if ($Target.Equals("Debug")) {
 if($Target.Equals("Release")) {
     Write-Host "Packaging for ThunderStore..."
     $Package="Package"
+    $PackageName="PortalStations"
     $PackagePath="$ProjectPath\$Package"
+    $Version=(Get-Command "$TargetPath\$TargetAssembly").FileVersionInfo.FileVersion.Replace(".", "_")
 
     Write-Host "$PackagePath\$TargetAssembly"
-    New-Item -Type Directory -Path "$PackagePath\plugins" -Force
-    Copy-Item -Path "$TargetPath\$TargetAssembly" -Destination "$PackagePath\plugins\$TargetAssembly" -Force
-    Copy-Item -Path "$ProjectPath\README.md" -Destination "$PackagePath\README.md" -Force
-    Compress-Archive -Path "$PackagePath\*" -DestinationPath "$TargetPath\$TargetAssembly.zip" -Force
+    New-Item -Type Directory -Path "$PackagePath\plugins\$PackageName" -Force
+    New-Item -Type Directory -Path "$ProjectPath\..\dist\ThunderStore" -Force
+    
+    Copy-Item -Path "$TargetPath\$TargetAssembly" -Destination "$PackagePath\plugins\$PackageName\$TargetAssembly" -Force
+    Copy-Item -Path "$ProjectPath\..\CHANGELOG.md" -Destination "$PackagePath\plugins\$PackageName\CHANGELOG.md" -Force
+    Copy-Item -Path "$ProjectPath\..\LICENSE" -Destination "$PackagePath\plugins\$PackageName\LICENSE" -Force
+
+    Copy-Item -Path "$ProjectPath\..\LICENSE" -Destination "$PackagePath\LICENSE" -Force
+    Copy-Item -Path "$ProjectPath\..\CHANGELOG.md" -Destination "$PackagePath\CHANGELOG.md" -Force
+    Copy-Item -Path "$ProjectPath\..\README.md" -Destination "$PackagePath\README.md" -Force
+    
+    Compress-Archive -Path "$PackagePath\*" -DestinationPath "$ProjectPath\..\dist\ThunderStore\Valheim_$($name)_v$Version.zip" -Force
+    Compress-Archive -Path "$PackagePath\plugins\*" -DestinationPath "$ProjectPath\..\dist\Valheim_$($name)_v$Version.zip" -Force
 }
 
 # Pop Location

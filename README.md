@@ -1,2 +1,4 @@
-# valheim-portal-stations
-Omni-directional portal stations for Valheim
+# Portal Stations
+
+A custom portal which supports omnidirectional teleportation between all portals.
+

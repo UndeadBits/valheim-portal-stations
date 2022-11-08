@@ -7,7 +7,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     /// Logic for teleportation destination items.
     /// </summary>
     public class DestinationItem : UIElementBase {
-        private ZDO stationZDO;
+        private PortalStation.Destination destination;
         private Text stationNameText;
         private Button teleportButton;
 
@@ -15,24 +15,24 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Raised when the "teleport" button has been clicked. 
         /// </summary>
         /// ReSharper disable once InconsistentNaming
-        public readonly UnityEvent<ZDO> onClick = new UnityEvent<ZDO>();
+        public readonly UnityEvent<PortalStation.Destination> onClick = new UnityEvent<PortalStation.Destination>();
 
         /// <summary>
-        /// Gets or sets the stations ZDO.
+        /// Gets or sets the destination data.
         /// </summary>
-        public ZDO StationZDO {
+        public PortalStation.Destination Destination {
             get {
-                return this.stationZDO;
+                return this.destination;
             }
             set {
-                if (this.stationZDO == value) {
+                if (this.destination == value) {
                     return;
                 }
                 
-                this.stationZDO = value;
+                this.destination = value;
                 
                 if (this.stationNameText) {
-                    this.stationNameText.text = this.stationZDO == null ? "N/A" : this.stationZDO.GetString(PortalStation.PROP_STATION_NAME, "???");
+                    this.stationNameText.text = this.destination.stationName; // this.stationZDO == null ? "N/A" : this.stationZDO.GetString(PortalStation.PROP_STATION_NAME, "???");
                 }
             }
         }
@@ -53,11 +53,11 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Handles a click on the teleport button.
         /// </summary>
         private void OnTeleportClick() {
-            if (this.stationZDO == null) {
+            if (this.destination.id.IsNone()) {
                 return;
             }
 
-            this.onClick.Invoke(this.stationZDO);
+            this.onClick.Invoke(this.destination);
         }
     }
 }

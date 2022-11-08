@@ -7,8 +7,8 @@
     <ProjectGuid>{DEAF4438-8089-40ED-8175-398E1261D45B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>UndeadBits.ValheimMods.PortalNet</RootNamespace>
-    <AssemblyName>UndeadBits.ValheimMods.PortalStation</AssemblyName>
+    <RootNamespace>UndeadBits.ValheimMods.PortalStations</RootNamespace>
+    <AssemblyName>PortalStations</AssemblyName>
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -93,7 +93,6 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
-    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Package\plugins\" />
@@ -104,6 +103,15 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\portal_station_assets" />
     <EmbeddedResource Include="Assets\portal_station_assets.manifest" />
+    <Content Include="..\CHANGELOG.md">
+      <Link>CHANGELOG.md</Link>
+    </Content>
+    <Content Include="..\publish.ps1">
+      <Link>publish.ps1</Link>
+    </Content>
+    <Content Include="..\README.md">
+      <Link>README.md</Link>
+    </Content>
     <Content Include="Package\icon.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
