@@ -1,3 +1,6 @@
+# 0.4.2
+    fix: fix station renaming not possible (again)
+
 # 0.4.1
     fix: sync station renames in destination list
     fix: fix station renaming not possible

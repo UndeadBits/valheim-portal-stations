@@ -230,9 +230,9 @@ namespace UndeadBits.ValheimMods.PortalStation {
                     zdo.Set(PROP_STATION_NAME, PortalStationPlugin.Instance.CreateStationName());
                     Jotunn.Logger.LogInfo($"Portal station \"{zdo.GetString(PROP_STATION_NAME)}\" created.");
                 }
-
-                this.view.Register<string>(nameof(RPC_SetStationName), RPC_SetStationName);
             }
+
+            this.view.Register<string>(nameof(RPC_SetStationName), RPC_SetStationName);
         }
         
         /// <summary>
