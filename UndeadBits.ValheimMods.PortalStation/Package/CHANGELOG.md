@@ -1,6 +1,10 @@
+# 0.6.1
+    fix: teleportation buttons always disabled
+
 # 0.6.0
     feat: personal teleportation device
     feat: no teleport prevention when carrying non-teleportable resources for portal stations
+    feat: load localization from file
     chore: add attributions to README.md
 
 # 0.5.0

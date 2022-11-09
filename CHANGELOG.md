@@ -1,3 +1,6 @@
+# 0.6.1
+    fix: teleportation buttons always disabled
+
 # 0.6.0
     feat: personal teleportation device
     feat: no teleport prevention when carrying non-teleportable resources for portal stations
