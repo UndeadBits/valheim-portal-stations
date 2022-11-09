@@ -1,4 +1,5 @@
 ﻿using Jotunn.Managers;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -12,6 +13,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
     public class PortalStationGUI : BaseTeleportationGUI {
         private PortalStation currentPortalStation;
         private InputField stationNameInput;
+
+        /// <summary>
+        /// Gets the amount of fuel available.
+        /// </summary>
+        public override int GetFuelAmount() {
+            return Int32.MaxValue;
+        }
 
         /// <summary>
         /// Shows the GUI.

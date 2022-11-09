@@ -4,7 +4,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
     
     public class PersonalTeleportationDeviceGUI : BaseTeleportationGUI {
 
-        public int GetFuelAmount() {
+        /// <summary>
+        /// Gets the amount of fuel available.
+        /// </summary>
+        public override int GetFuelAmount() {
             var user = CurrentUser;
             if (!user) {
                 return 0;

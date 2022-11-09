@@ -65,7 +65,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private void UpdateGUI() {
             var cost = 0;
             var affordable = false;
-            var ptdGUI = GetComponentInParent<PersonalTeleportationDeviceGUI>();
+            var ptdGUI = GetComponentInParent<BaseTeleportationGUI>();
             if (ptdGUI) {
                 var user = ptdGUI.CurrentUser;
                 if (user) {

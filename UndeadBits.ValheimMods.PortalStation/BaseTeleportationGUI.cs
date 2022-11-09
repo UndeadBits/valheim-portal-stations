@@ -21,6 +21,11 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
+        /// Gets the amount of fuel available.
+        /// </summary>
+        public abstract int GetFuelAmount();
+
+        /// <summary>
         /// Shows the GUI.
         /// </summary>
         protected void OpenGUI(Humanoid user) {
