@@ -65,7 +65,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             var stationNumber = 1;
 
             while (true) {
-                var stationName = $"PS_{stationNumber++:000}";
+                var stationName = $"Portal Station #{stationNumber++:000}";
                 if (stationNames.Contains(stationName)) {
                     continue;
                 }
