@@ -1,9 +1,9 @@
 ManifestFileVersion: 0
-CRC: 2820265596
+CRC: 3083786141
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 6e8d548b69d2f1b83b4ca2e8cf1f20bd
+    Hash: 5ad8d36c04054a0cf4e9407494e51a3f
   TypeTreeHash:
     serializedVersion: 2
     Hash: b5753f39483add2d52ece8e3ec70482a
@@ -102,6 +102,8 @@ SerializeReferenceClassIdentifiers:
   ClassName: UnityEngine.UI.SpriteState
 - AssemblyName: assembly_valheim
   ClassName: EffectList
+- AssemblyName: assembly_valheim
+  ClassName: EffectList/EffectData
 - AssemblyName: assembly_valheim
   ClassName: HitData/DamageModifiers
 Assets:
