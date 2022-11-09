@@ -192,10 +192,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return;
             }
             
+            /*
             if (!this.currentUser.IsTeleportable()) {
                 this.currentUser.Message(MessageHud.MessageType.Center, "$msg_noteleport");
                 return;
             }
+            */
 
             var distance = Vector3.Distance(this.currentUser.transform.position, destination.position);
             var distant = distance >= ZoneSystem.instance.m_zoneSize;
