@@ -17,7 +17,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     internal class PortalStationPlugin : BaseUnityPlugin {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
-        public const string PLUGIN_VERSION = "0.4.3";
+        public const string PLUGIN_VERSION = "0.5.0";
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
