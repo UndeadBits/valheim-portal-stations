@@ -225,11 +225,9 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return;
             }
 
-            if (ZNet.instance.IsServer()) {
-                if (String.IsNullOrEmpty(zdo.GetString(PROP_STATION_NAME, null))) {
-                    zdo.Set(PROP_STATION_NAME, PortalStationPlugin.Instance.CreateStationName());
-                    Jotunn.Logger.LogInfo($"Portal station \"{zdo.GetString(PROP_STATION_NAME)}\" created.");
-                }
+            if (zdo.IsOwner() && String.IsNullOrEmpty(zdo.GetString(PROP_STATION_NAME, null))) {
+                zdo.Set(PROP_STATION_NAME, PortalStationPlugin.Instance.CreateStationName());
+                Jotunn.Logger.LogInfo($"Portal station \"{zdo.GetString(PROP_STATION_NAME)}\" created.");
             }
 
             this.view.Register<string>(nameof(RPC_SetStationName), RPC_SetStationName);
