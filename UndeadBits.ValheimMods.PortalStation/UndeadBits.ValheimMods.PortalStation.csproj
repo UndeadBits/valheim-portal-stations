@@ -81,8 +81,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BaseTeleportationGUI.cs" />
+    <Compile Include="ICustomInteractable.cs" />
     <Compile Include="DestinationItem.cs" />
     <Compile Include="FindReferenceHelper.cs" />
+    <Compile Include="PersonalTeleportationDevice.cs" />
+    <Compile Include="PersonalTeleportationDeviceGUI.cs" />
     <Compile Include="PortalStation.cs" />
     <Compile Include="PortalStationGUI.cs" />
     <Compile Include="Properties\IgnoreAccessModifiers.cs" />
@@ -111,6 +115,9 @@
     </Content>
     <Content Include="..\README.md">
       <Link>README.md</Link>
+    </Content>
+    <Content Include="Assets\Translations\English\en-us.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Package\icon.png" />
   </ItemGroup>

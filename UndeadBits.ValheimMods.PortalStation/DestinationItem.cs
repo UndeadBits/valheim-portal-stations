@@ -1,4 +1,6 @@
-﻿using UnityEngine.Events;
+﻿using System;
+using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace UndeadBits.ValheimMods.PortalStation {
@@ -9,6 +11,9 @@ namespace UndeadBits.ValheimMods.PortalStation {
     public class DestinationItem : UIElementBase {
         private PortalStation.Destination destination;
         private Text stationNameText;
+        private Text fuelCostText;
+        private Image fuelIconImage;
+        private Color originalFuelColor;
         private Button teleportButton;
 
         /// <summary>
@@ -31,9 +36,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 
                 this.destination = value;
                 
-                if (this.stationNameText) {
-                    this.stationNameText.text = this.destination.stationName; // this.stationZDO == null ? "N/A" : this.stationZDO.GetString(PortalStation.PROP_STATION_NAME, "???");
-                }
+                UpdateGUI();
             }
         }
 
@@ -43,9 +46,49 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private void Awake() {
             this.stationNameText = RequireComponentByName<Text>("$part_StationName");
             this.teleportButton = RequireComponentByName<Button>("$part_TeleportButton");
+            this.fuelCostText = RequireComponentByName<Text>("$part_FuelCount", true);
+            this.fuelIconImage = RequireComponentByName<Image>("$part_FuelImage", true);
+            this.originalFuelColor = this.fuelCostText ? this.fuelCostText.color : Color.black;
             
             if (this.teleportButton) {
                 this.teleportButton.onClick.AddListener(OnTeleportClick);
+            }
+
+            if (this.fuelCostText) {
+                InvokeRepeating(nameof(UpdateGUI), 0, 0.2f);
+            }
+        }
+        
+        /// <summary>
+        /// Updates the fuel cost
+        /// </summary>
+        private void UpdateGUI() {
+            var cost = 0;
+            var affordable = false;
+            var ptdGUI = GetComponentInParent<PersonalTeleportationDeviceGUI>();
+            if (ptdGUI) {
+                var user = ptdGUI.CurrentUser;
+                if (user) {
+                    var distance = Vector3.Distance(user.transform.position, this.destination.position);
+                    var available = ptdGUI.GetFuelAmount();
+                    
+                    cost = PersonalTeleportationDevice.CalculateFuelCost(distance);
+                    affordable = cost <= available;
+                    Jotunn.Logger.LogInfo($"Fuel: {available}, cost: {cost}, distance: {distance}");
+                }
+            }
+
+            if (this.fuelCostText) {
+                this.fuelCostText.text = $"{cost}";
+                this.fuelCostText.color = affordable ? this.originalFuelColor : Color.red;
+            }
+
+            if (this.teleportButton) {
+                this.teleportButton.interactable = affordable;
+            }
+            
+            if (this.stationNameText) {
+                this.stationNameText.text = this.destination.stationName;
             }
         }
 

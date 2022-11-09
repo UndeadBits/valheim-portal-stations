@@ -48,10 +48,14 @@ if ($Target.Equals("Debug")) {
     }
     
     $plug = New-Item -Type Directory -Path "$DeployPath\$name" -Force
+    New-Item -Type Directory -Path "$plug\Assets\Translations\" -Force
+    
     Write-Host "Copy $TargetAssembly to $plug"
     Copy-Item -Path "$TargetPath\$name.dll" -Destination "$plug" -Force
     Copy-Item -Path "$TargetPath\$name.pdb" -Destination "$plug" -Force
     Copy-Item -Path "$TargetPath\$name.dll.mdb" -Destination "$plug" -Force
+    
+    Copy-Item -Recurse -Path "$ProjectPath\Assets\Translations\" -Destination "$plug\Assets\" -Force
 }
 
 if($Target.Equals("Release")) {
@@ -63,11 +67,13 @@ if($Target.Equals("Release")) {
 
     Write-Host "$PackagePath\$TargetAssembly"
     New-Item -Type Directory -Path "$PackagePath\plugins\$PackageName" -Force
+    New-Item -Type Directory -Path "$PackagePath\plugins\$PackageName\Assets\Translations\" -Force
     New-Item -Type Directory -Path "$ProjectPath\..\dist\ThunderStore" -Force
     
     Copy-Item -Path "$TargetPath\$TargetAssembly" -Destination "$PackagePath\plugins\$PackageName\$TargetAssembly" -Force
     Copy-Item -Path "$ProjectPath\..\CHANGELOG.md" -Destination "$PackagePath\plugins\$PackageName\CHANGELOG.md" -Force
     Copy-Item -Path "$ProjectPath\..\LICENSE" -Destination "$PackagePath\plugins\$PackageName\LICENSE" -Force
+    Copy-Item -Recurse -Path "$ProjectPath\Assets\Translations\" -Destination "$PackagePath\plugins\$PackageName\Assets\" -Force
 
     Copy-Item -Path "$ProjectPath\..\LICENSE" -Destination "$PackagePath\LICENSE" -Force
     Copy-Item -Path "$ProjectPath\..\CHANGELOG.md" -Destination "$PackagePath\CHANGELOG.md" -Force

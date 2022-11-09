@@ -136,6 +136,16 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
         #endregion
         
+        public ZDOID StationId {
+            get {
+                if (this.view) {
+                    return this.view.m_zdo.m_uid;
+                }
+
+                return ZDOID.None;
+            }
+        }
+
         /// <summary>
         /// Unused.
         /// </summary>

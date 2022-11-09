@@ -1,12 +1,12 @@
 ManifestFileVersion: 0
-CRC: 1344264607
+CRC: 1665976331
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 6237c5829d19a268f8141bfc4e3d738c
+    Hash: 9c713fbc211878a7ae32c5c91e0d6281
   TypeTreeHash:
     serializedVersion: 2
-    Hash: c5ae42f4b33049e3cb88dfd33f06f66e
+    Hash: dc361193e21f94ffd029ea9b798e9145
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -25,6 +25,8 @@ ClassTypes:
   Script: {instanceID: 0}
 - Class: 48
   Script: {instanceID: 0}
+- Class: 54
+  Script: {instanceID: 0}
 - Class: 64
   Script: {instanceID: 0}
 - Class: 65
@@ -40,9 +42,13 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 11500000, guid: 1aa08ab6e0800fa44ae55d278d1423e3, type: 3}
 - Class: 114
+  Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: 4eff91178cefece49a722af7e1fdb5e6, type: 3}
+- Class: 114
   Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
 - Class: 114
-  Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  Script: {fileID: 11500000, guid: b54a8c24339586b49a5635d2848a1e03, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 231b7bbe50f523541abf1cdd5a20eb10, type: 3}
 - Class: 114
@@ -111,13 +117,24 @@ SerializeReferenceClassIdentifiers:
 - AssemblyName: UnityEngine.UI
   ClassName: UnityEngine.UI.SpriteState
 - AssemblyName: assembly_valheim
+  ClassName: Attack
+- AssemblyName: assembly_valheim
   ClassName: EffectList
 - AssemblyName: assembly_valheim
   ClassName: EffectList/EffectData
 - AssemblyName: assembly_valheim
   ClassName: HitData/DamageModifiers
+- AssemblyName: assembly_valheim
+  ClassName: HitData/DamageTypes
+- AssemblyName: assembly_valheim
+  ClassName: ItemDrop/ItemData
+- AssemblyName: assembly_valheim
+  ClassName: ItemDrop/ItemData/SharedData
 Assets:
 - Assets/Prefabs/PortalStation_GUI.prefab
+- Assets/Prefabs/Item_PersonalTeleportationDevice.prefab
+- Assets/Prefabs/PersonalTeleportationDevice_GUI.prefab
 - Assets/Prefabs/PortalStation_GUI_StationItem.prefab
+- Assets/Prefabs/PersonalTeleportationDevice_GUI_StationItem.prefab
 - Assets/Prefabs/PortalStation.prefab
 Dependencies: []

@@ -1,4 +1,5 @@
 using BepInEx;
+using HarmonyLib;
 using Jotunn.Configs;
 using Jotunn.Entities;
 using Jotunn.Managers;
@@ -17,23 +18,67 @@ namespace UndeadBits.ValheimMods.PortalStation {
     internal class PortalStationPlugin : BaseUnityPlugin {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
-        public const string PLUGIN_VERSION = "0.5.0";
+        public const string PLUGIN_VERSION = "0.6.0";
 
-        // Use this class to add your own localization to the game
-        // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
         private static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+        private readonly Harmony harmony = new Harmony(PLUGIN_GUID); 
 
         private readonly List<PortalStation.Destination> availableDestinations = new List<PortalStation.Destination>();
         private readonly Dictionary<ZDO, PortalStation.Destination> serverPortalStations = new Dictionary<ZDO, PortalStation.Destination>(new ZDOComparer());
         private readonly List<ZDO> tempZDOList = new List<ZDO>();
         private AssetBundle assetBundle;
         private GameObject portalStationPrefab;
-        private PieceConfig portalStationPieceConfig;
         private CustomPiece portalStationPiece;
 
         private GameObject portalStationGUIPrefab;
         private GameObject portalStationDestinationItemPrefab;
+
+        private GameObject personalTeleportationDevicePrefab;
+        private CustomItem personalTeleportationDeviceItem;
+        
+        private GameObject personalTeleportationDeviceGUIPrefab;
+        private GameObject personalTeleportationDeviceGUIDestinationItemPrefab;
+
         private PortalStationGUI portalStationGUIInstance;
+        private PersonalTeleportationDeviceGUI personalTeleportationDeviceGUIInstance;
+
+        #region Harmony Patches
+        
+        [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.UseItem))]
+        private class Humanoid_UseItem_Patch {
+            [HarmonyPrefix]
+            private static bool UseItem(Inventory inventory, ItemDrop.ItemData item, bool fromInventoryGui, Humanoid __instance) {
+                if (item.m_shared.m_name != "$item_personal_teleportation_device") {
+                    return true;
+                }
+
+                PersonalTeleportationDevice.UseItem(__instance, inventory, item);
+
+                return false;
+            }
+        }
+        
+        /*
+        /// <summary>
+        /// Patches the ItemDrop.UseItem method so custom logic can be injected.
+        /// </summary>
+        [HarmonyPatch(typeof(ItemDrop), nameof(ItemDrop.UseItem))]
+        private class ItemDrop_UseItem_Patch {
+
+            [HarmonyPrefix]
+            private static bool UseItem(Humanoid user, ItemDrop.ItemData item, ItemDrop __instance, ref bool __result) {
+                var customInteractable = __instance.GetComponentInChildren<ICustomInteractable>();
+                if (customInteractable != null) {
+                    __result = customInteractable.UseItem(user, item, __result);
+                    return true;
+                }
+
+                return false;
+            }
+        }
+        */
+
+        #endregion
         
         /// <summary>
         /// Gets the current plugin instance.
@@ -77,8 +122,18 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// Creates a new teleport destination item.
         /// </summary>
-        public DestinationItem CreateDestinationItem(RectTransform parent) {
+        public DestinationItem CreatePSDestinationItem(RectTransform parent) {
             var instance = Instantiate(this.portalStationDestinationItemPrefab);
+            instance.GetComponent<RectTransform>().SetParent(parent, false);
+
+            return instance.GetComponent<DestinationItem>();
+        }
+
+        /// <summary>
+        /// Creates a new teleport destination item.
+        /// </summary>
+        public DestinationItem CreatePTDDestinationItem(RectTransform parent) {
+            var instance = Instantiate(this.personalTeleportationDeviceGUIDestinationItemPrefab);
             instance.GetComponent<RectTransform>().SetParent(parent, false);
 
             return instance.GetComponent<DestinationItem>();
@@ -96,29 +151,22 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
+        /// Gets the personal teleportation device GUI instance.
+        /// </summary>
+        public PersonalTeleportationDeviceGUI GetPersonalTeleportationDeviceGUIInstance() {
+            if (!this.personalTeleportationDeviceGUIInstance) {
+                this.personalTeleportationDeviceGUIInstance = CreatePersonalTeleportationDeviceGUIInstance();
+            }
+
+            return this.personalTeleportationDeviceGUIInstance;
+        }
+
+        /// <summary>
         /// Requests current list of portal station destinations from the server,
         /// </summary>
         public void RequestPortalStationDestinationsFromServer() {
             Jotunn.Logger.LogInfo($"RequestPortalStations");
             ZRoutedRpc.instance.InvokeRoutedRPC(nameof(RPC_RequestStationList));
-        }
-        
-        /// <summary>
-        /// Adds localizations.
-        /// </summary>
-        static PortalStationPlugin() {
-            AddLocalizations();
-        }
-
-        /// <summary>
-        /// Adds hard-coded localizations.
-        /// </summary>
-        private static void AddLocalizations() {
-            Localization.AddTranslation("English", new Dictionary<string, string> {
-                {
-                    "$piece_portal_station", "Portal Station"
-                }
-            });
         }
 
         /// <summary>
@@ -127,12 +175,24 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private void Awake() {
             Jotunn.Logger.LogInfo($"Initializing PortalStations v{PLUGIN_VERSION}");
             
+            this.harmony.PatchAll();
+            
             Instance = this;
             PrefabManager.OnPrefabsRegistered += InitDestinationSync;
 
+            this.assetBundle = AssetUtils.LoadAssetBundleFromResources("Assets.portal_station_assets");
+
             AddPortalStationPiece();
+            AddPersonalTeleportationDevice();
             
             InvokeRepeating(nameof(SyncAvailablePortalStations), 0, 0.2f);
+        }
+
+        /// <summary>
+        /// Destroys the plugin.
+        /// </summary>
+        private void OnDestroy() {
+            harmony.UnpatchSelf();
         }
 
         /// <summary>
@@ -169,6 +229,19 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
+        /// Creates the personal teleportation device GUI.
+        /// </summary>
+        private PersonalTeleportationDeviceGUI CreatePersonalTeleportationDeviceGUIInstance() {
+            var instance = Instantiate(this.personalTeleportationDeviceGUIPrefab);
+            var rootTransform = instance.GetComponent<RectTransform>();
+            rootTransform.SetParent(GUIManager.CustomGUIFront.transform, false);
+
+            instance.gameObject.SetActive(false);
+
+            return instance.GetComponent<PersonalTeleportationDeviceGUI>();
+        }
+
+        /// <summary>
         /// Adds the portal station piece.
         /// </summary>
         private void AddPortalStationPiece() {
@@ -178,7 +251,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
             Jotunn.Logger.LogInfo("Adding portal station piece..");
 
-            this.assetBundle = AssetUtils.LoadAssetBundleFromResources("Assets.portal_station_assets");
             this.portalStationPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation.prefab");
             this.portalStationPrefab.AddComponent<PortalStation>();
 
@@ -188,17 +260,43 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.portalStationDestinationItemPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation_gui_stationitem.prefab");
             this.portalStationDestinationItemPrefab.AddComponent<DestinationItem>();
 
-            this.portalStationPieceConfig = new PieceConfig {
+            var config = new PieceConfig {
                 PieceTable = "Hammer",
                 CraftingStation = "piece_workbench",
             };
 
-            this.portalStationPieceConfig.AddRequirement(new RequirementConfig("Stone", 20, 0, true));
-            this.portalStationPieceConfig.AddRequirement(new RequirementConfig("SurtlingCore", 4, 0, true));
-            this.portalStationPieceConfig.AddRequirement(new RequirementConfig("GreydwarfEye", 20, 0, true));
+            config.AddRequirement(new RequirementConfig("Stone", 20, 0, true));
+            config.AddRequirement(new RequirementConfig("SurtlingCore", 4, 0, true));
+            config.AddRequirement(new RequirementConfig("GreydwarfEye", 20, 0, true));
 
-            this.portalStationPiece = new CustomPiece(this.portalStationPrefab.gameObject, true, this.portalStationPieceConfig);
+            this.portalStationPiece = new CustomPiece(this.portalStationPrefab.gameObject, true, config);
             PieceManager.Instance.AddPiece(portalStationPiece);
+        }
+
+        private void AddPersonalTeleportationDevice() {
+            Jotunn.Logger.LogInfo("Adding personal teleportation device item..");
+            
+            this.personalTeleportationDevicePrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/item_personalteleportationdevice.prefab");
+
+            
+            this.personalTeleportationDeviceGUIPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/personalteleportationdevice_gui.prefab");
+            this.personalTeleportationDeviceGUIPrefab.AddComponent<PersonalTeleportationDeviceGUI>();
+
+            this.personalTeleportationDeviceGUIDestinationItemPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/personalteleportationdevice_gui_stationitem.prefab");
+            this.personalTeleportationDeviceGUIDestinationItemPrefab.AddComponent<DestinationItem>();
+
+            var config = new ItemConfig {
+                CraftingStation = "piece_workbench",
+                RepairStation = "piece_workbench",
+                MinStationLevel = 3
+            };
+            
+            config.AddRequirement(new RequirementConfig("SurtlingCore", 3, 1, true));
+            config.AddRequirement(new RequirementConfig("LeatherScraps", 10, 5, true));
+            config.AddRequirement(new RequirementConfig("IronNails", 10, 5, true));
+
+            this.personalTeleportationDeviceItem = new CustomItem(this.personalTeleportationDevicePrefab.gameObject, true, config);
+            ItemManager.Instance.AddItem(this.personalTeleportationDeviceItem);
         }
 
         /// <summary>
@@ -264,6 +362,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Synchronizes portal stations from server to clients if necessary.
         /// </summary>
         private void SyncAvailablePortalStations() {
+
             if (ZNet.instance == null || !ZNet.instance.IsServer() && !ZNet.instance.IsDedicated()) {
                 return;
             }

@@ -13,10 +13,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="name">The component name</param>
         /// <typeparam name="T">The component type</typeparam>
         /// <returns>The found component or null</returns>
-        protected T RequireComponentByName<T>(string name) where T : Component {
+        protected T RequireComponentByName<T>(string name, bool optional = false) where T : Component {
             var result = this.transform.FindComponentByName<T>(name);
 
-            if (result == null) {
+            if (result == null && !optional) {
                 Jotunn.Logger.LogWarning($"Unable to find required child component with name \"{name}\"");
             }
 
