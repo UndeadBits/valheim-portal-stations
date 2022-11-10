@@ -1,3 +1,8 @@
+# 0.8.0-beta
+    fix: personal teleportation device not craftable at forge
+    fix: reduce slowdowns caused by this mod
+    feat: order station list by station name
+
 # 0.7.0-beta
     feat: add quality and duribility to personal teleportation device
     feat: moved personal teleportation device to forge instead of workbench

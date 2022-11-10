@@ -18,7 +18,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     internal class PortalStationPlugin : BaseUnityPlugin {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
-        public const string PLUGIN_VERSION = "0.7.0";
+        public const string PLUGIN_VERSION = "0.8.0";
         private const float STATION_SYNC_INTERVAL = 1.0f;
 
         private static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
