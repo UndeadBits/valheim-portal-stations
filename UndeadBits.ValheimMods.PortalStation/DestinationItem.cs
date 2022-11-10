@@ -12,7 +12,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private PortalStation.Destination destination;
         private Text stationNameText;
         private Text fuelCostText;
-        private Image fuelIconImage;
         private Color originalFuelColor;
         private Button teleportButton;
 
@@ -29,15 +28,18 @@ namespace UndeadBits.ValheimMods.PortalStation {
             get {
                 return this.destination;
             }
-            set {
-                if (this.destination == value) {
-                    return;
-                }
-                
-                this.destination = value;
-                
-                UpdateGUI();
+        }
+
+        /// <summary>
+        /// Sets the destination which this item represents.
+        /// </summary>
+        public void SetDestination(BaseTeleportationGUI teleportationGUI, PortalStation.Destination value) {
+            if (this.destination == value) {
+                return;
             }
+            
+            this.destination = value;
+            UpdateGUI(teleportationGUI);
         }
 
         /// <summary>
@@ -47,36 +49,25 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.stationNameText = RequireComponentByName<Text>("$part_StationName");
             this.teleportButton = RequireComponentByName<Button>("$part_TeleportButton");
             this.fuelCostText = RequireComponentByName<Text>("$part_FuelCount", true);
-            this.fuelIconImage = RequireComponentByName<Image>("$part_FuelImage", true);
             this.originalFuelColor = this.fuelCostText ? this.fuelCostText.color : Color.black;
             
             if (this.teleportButton) {
                 this.teleportButton.onClick.AddListener(OnTeleportClick);
-            }
-
-            if (this.fuelCostText) {
-                InvokeRepeating(nameof(UpdateGUI), 0, 0.2f);
             }
         }
         
         /// <summary>
         /// Updates the fuel cost
         /// </summary>
-        private void UpdateGUI() {
+        public void UpdateGUI(BaseTeleportationGUI teleportationGUI) {
             var cost = 0;
             var affordable = false;
-            var teleportationGUI = GetComponentInParent<BaseTeleportationGUI>();
             
             if (teleportationGUI) {
-                var user = teleportationGUI.CurrentUser;
-                if (user) {
-                    var distance = Vector3.Distance(user.transform.position, this.destination.position);
-                    var available = teleportationGUI.GetFuelAmount();
+                var available = teleportationGUI.GetFuelAmount();
 
-                    cost = teleportationGUI.CalculateFuelCost(this.destination);
-                    affordable = cost <= available;
-                    Jotunn.Logger.LogInfo($"Fuel: {available}, cost: {cost}, distance: {distance}");
-                }
+                cost = teleportationGUI.CalculateFuelCost(this.destination);
+                affordable = cost <= available;
             }
 
             if (this.fuelCostText) {

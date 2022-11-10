@@ -33,9 +33,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Shows the GUI.
         /// </summary>
         public void Open(Humanoid user, ItemDrop.ItemData item) {
-            Jotunn.Logger.LogInfo($"Opening personal teleportation device GUI");
             this.device = item;
-            
             OpenGUI(user);
         }
 

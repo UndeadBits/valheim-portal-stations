@@ -19,6 +19,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
         public const string PLUGIN_VERSION = "0.7.0";
+        private const float STATION_SYNC_INTERVAL = 1.0f;
 
         private static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
         private readonly Harmony harmony = new Harmony(PLUGIN_GUID); 
@@ -165,7 +166,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Requests current list of portal station destinations from the server,
         /// </summary>
         public void RequestPortalStationDestinationsFromServer() {
-            Jotunn.Logger.LogInfo($"RequestPortalStations");
             ZRoutedRpc.instance.InvokeRoutedRPC(nameof(RPC_RequestStationList));
         }
 
@@ -173,8 +173,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Initializes the plugin.
         /// </summary>
         private void Awake() {
-            Jotunn.Logger.LogInfo($"Initializing PortalStations v{PLUGIN_VERSION}");
-            
             this.harmony.PatchAll();
             
             Instance = this;
@@ -185,7 +183,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             AddPortalStationPiece();
             AddPersonalTeleportationDevice();
             
-            InvokeRepeating(nameof(SyncAvailablePortalStations), 0, 0.2f);
+            InvokeRepeating(nameof(SyncAvailablePortalStations), STATION_SYNC_INTERVAL, STATION_SYNC_INTERVAL);
         }
 
         /// <summary>
@@ -249,8 +247,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return;
             }
 
-            Jotunn.Logger.LogInfo("Adding portal station piece..");
-
             this.portalStationPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation.prefab");
             this.portalStationPrefab.AddComponent<PortalStation>();
 
@@ -274,10 +270,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         private void AddPersonalTeleportationDevice() {
-            Jotunn.Logger.LogInfo("Adding personal teleportation device item..");
-            
             this.personalTeleportationDevicePrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/item_personalteleportationdevice.prefab");
-
             
             this.personalTeleportationDeviceGUIPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/personalteleportationdevice_gui.prefab");
             this.personalTeleportationDeviceGUIPrefab.AddComponent<PersonalTeleportationDeviceGUI>();
@@ -305,7 +298,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private void InitDestinationSync() {
             try {
                 if (ZRoutedRpc.instance == null) {
-                    Jotunn.Logger.LogInfo("ZRoutedRpc instance not ready.");
                     return;
                 }
 
@@ -316,8 +308,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 } else {
                     ZRoutedRpc.instance.Register<ZPackage>(nameof(RPC_SyncStationList), RPC_SyncStationList);
                 }
-                
-                Jotunn.Logger.LogInfo("Added routed RPCs.");
+                Jotunn.Logger.LogDebug("Added routed RPCs.");
             } catch (Exception ex) {
                 Jotunn.Logger.LogError($"Unable to register RPCs: {ex.Message}");
             }
@@ -362,7 +353,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Synchronizes portal stations from server to clients if necessary.
         /// </summary>
         private void SyncAvailablePortalStations() {
-
             if (ZNet.instance == null || !ZNet.instance.IsServer() && !ZNet.instance.IsDedicated()) {
                 return;
             }
@@ -406,7 +396,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
 
             if (removeCount > 0 || addCount > 0 || updateCount > 0) {
-                Jotunn.Logger.LogInfo($"Update stations (count: {this.serverPortalStations.Count}, new: {addCount}, removed: {removeCount}, updated: {updateCount})");
                 SendDestinationsToClient(ZRoutedRpc.Everybody);
             }
         }
@@ -416,9 +405,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         private void SendDestinationsToClient(long target) {
             var destinations = this.serverPortalStations.Keys.Select(x => new PortalStation.Destination(x)).ToList();
-
-            Jotunn.Logger.LogInfo($"Sync stations to ({target})");
-
             var package = new ZPackage();
             package.Write(destinations.Count);
 

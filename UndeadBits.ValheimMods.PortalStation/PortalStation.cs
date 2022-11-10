@@ -179,16 +179,11 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return false;
             }
 
-            if (user == Player.m_localPlayer) {
-                if (!InUseDistance(user)) {
-                    Jotunn.Logger.LogInfo($"Portal station not in range.");
-                    return false;
-                }
-                
-                return OpenGUI(user);
+            if (user != Player.m_localPlayer) {
+                return false;
             }
-            
-            return false;
+
+            return InUseDistance(user) && OpenGUI(user);
         }
 
         /// <summary>
@@ -237,7 +232,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
             if (zdo.IsOwner() && String.IsNullOrEmpty(zdo.GetString(PROP_STATION_NAME, null))) {
                 zdo.Set(PROP_STATION_NAME, PortalStationPlugin.Instance.CreateStationName());
-                Jotunn.Logger.LogInfo($"Portal station \"{zdo.GetString(PROP_STATION_NAME)}\" created.");
             }
 
             this.view.Register<string>(nameof(RPC_SetStationName), RPC_SetStationName);
@@ -281,7 +275,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             
             var stationGUI = PortalStationPlugin.Instance.GetPortalStationGUI();
             if (stationGUI) {
-                Jotunn.Logger.LogInfo($"Opening GUI of station {GetStationName()}");
                 stationGUI.Open(user, this);
             }
             

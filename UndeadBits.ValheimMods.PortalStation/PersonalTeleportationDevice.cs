@@ -43,7 +43,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="item">The item data</param>
         public static void UseItem(Humanoid user, Inventory inventory, ItemDrop.ItemData item) {
             if (item.m_durability < item.m_shared.m_durabilityDrain) {
-                Jotunn.Logger.LogInfo($"Repair is needed");
+                Jotunn.Logger.LogDebug($"Repair is needed");
                 return;
             }
             

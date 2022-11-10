@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace UndeadBits.ValheimMods.PortalStation {
     
     public abstract class BaseTeleportationGUI : UIElementBase {
-        private const float GUI_UPDATE_INTERVAL = 0.1f;
+        private const float GUI_UPDATE_INTERVAL = 1.0f;
         
         private readonly LinkedList<DestinationItem> destinationItems = new LinkedList<DestinationItem>();
         private Humanoid currentUser;
@@ -41,8 +41,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Shows the GUI.
         /// </summary>
         protected void OpenGUI(Humanoid user) {
-            Jotunn.Logger.LogInfo($"Opening teleportation GUI");
-
             this.currentUser = user;
             
             this.gameObject.SetActive(true);
@@ -80,8 +78,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Initializes the component.
         /// </summary>
         protected virtual void Awake() {
-            Jotunn.Logger.LogInfo($"Initializing PortalStationGUI");
-
             this.destinationItemListRoot = RequireComponentByName<RectTransform>("$part_Content");
 
             var closeButton = RequireComponentByName<Button>("$part_CloseButton");
@@ -90,16 +86,20 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
 
             PortalStationPlugin.Instance.ChangeDestinations.AddListener(OnChangeDestinations);
-            InvokeRepeating(nameof(UpdateGUIVisibility), GUI_UPDATE_INTERVAL, GUI_UPDATE_INTERVAL);
+            InvokeRepeating(nameof(this.UpdateGUI), GUI_UPDATE_INTERVAL, GUI_UPDATE_INTERVAL);
         }
 
         /// <summary>
         /// Updates the GUI visibility.
         /// </summary>
-        protected virtual void UpdateGUIVisibility() {
+        protected virtual void UpdateGUI() {
             if (!this.currentUser) {
                 Close();
                 return;
+            }
+
+            foreach (var destinationItem in this.destinationItems) {
+                destinationItem.UpdateGUI(this);
             }
         }
 
@@ -142,7 +142,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 }
 
                 stationCount++;
-                destinationItem.Destination = destination;
+                destinationItem.SetDestination(this, destination);
             }
 
             while (this.destinationItems.Count > stationCount) {

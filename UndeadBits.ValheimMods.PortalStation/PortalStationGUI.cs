@@ -107,8 +107,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// Updates the GUI visibility.
         /// </summary>
-        protected override void UpdateGUIVisibility() {
-            base.UpdateGUIVisibility();
+        protected override void UpdateGUI() {
+            base.UpdateGUI();
 
             var currentUser = CurrentUser;
             if (!currentUser || !this.currentPortalStation || !this.currentPortalStation.InUseDistance(currentUser)) {
