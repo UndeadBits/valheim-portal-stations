@@ -286,14 +286,14 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.personalTeleportationDeviceGUIDestinationItemPrefab.AddComponent<DestinationItem>();
 
             var config = new ItemConfig {
-                CraftingStation = "piece_workbench",
-                RepairStation = "piece_workbench",
+                CraftingStation = "piece_forge",
+                RepairStation = "piece_forge",
                 MinStationLevel = 3
             };
             
             config.AddRequirement(new RequirementConfig("SurtlingCore", 3, 1, true));
-            config.AddRequirement(new RequirementConfig("LeatherScraps", 10, 5, true));
-            config.AddRequirement(new RequirementConfig("IronNails", 10, 5, true));
+            config.AddRequirement(new RequirementConfig("LeatherScraps", 10, 15, true));
+            config.AddRequirement(new RequirementConfig("IronNails", 10, 15, true));
 
             this.personalTeleportationDeviceItem = new CustomItem(this.personalTeleportationDevicePrefab.gameObject, true, config);
             ItemManager.Instance.AddItem(this.personalTeleportationDeviceItem);

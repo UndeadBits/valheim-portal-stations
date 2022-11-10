@@ -1,4 +1,5 @@
 ﻿using Jotunn.Managers;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,6 +13,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private Humanoid currentUser;
         private RectTransform destinationItemListRoot;
         private bool blockUserInput;
+        private bool noTeleportPrevention = true;
 
         /// <summary>
         /// Gets the current user.
@@ -23,7 +25,17 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// Gets the amount of fuel available.
         /// </summary>
-        public abstract int GetFuelAmount();
+        public virtual int GetFuelAmount() {
+            return Int32.MaxValue;
+        }
+
+        /// <summary>
+        /// Calculates the fuel cost to travel to the given destination.
+        /// </summary>
+        /// <returns></returns>
+        public virtual int CalculateFuelCost(PortalStation.Destination destination) {
+            return 0;
+        }
 
         /// <summary>
         /// Shows the GUI.
@@ -140,7 +152,26 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
         }
 
-        protected virtual bool AllowTeleportation(PortalStation.Destination destination, float distance) {
+        /// <summary>
+        /// Prepares teleportation to the given destination.
+        /// </summary>
+        /// <param name="destination">The destination to teleport to</param>
+        /// <returns>Whether teleportation is possible or not</returns>
+        protected virtual bool PrepareTeleportation(PortalStation.Destination destination) {
+            if (!this.currentUser) {
+                return false;
+            }
+            
+            if (ZoneSystem.instance.GetGlobalKey("noportals")) {
+                this.currentUser.Message(MessageHud.MessageType.Center, "$msg_blocked");
+                return false;
+            }
+            
+            if (!this.noTeleportPrevention && !this.currentUser.IsTeleportable()) {
+                this.currentUser.Message(MessageHud.MessageType.Center, "$msg_noteleport");
+                return false;
+            }
+            
             return true;
         }
         
@@ -149,26 +180,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         /// <param name="destination">The destination to teleport to</param>
         private void OnRequestTeleportation(PortalStation.Destination destination) {
-            if (!this.currentUser) {
-                return;
-            }
-            
-            if (ZoneSystem.instance.GetGlobalKey("noportals")) {
-                this.currentUser.Message(MessageHud.MessageType.Center, "$msg_blocked");
-                return;
-            }
-            
-            /*
-            if (!this.currentUser.IsTeleportable()) {
-                this.currentUser.Message(MessageHud.MessageType.Center, "$msg_noteleport");
-                return;
-            }
-            */
-
             var distance = Vector3.Distance(this.currentUser.transform.position, destination.position);
             var distant = distance >= ZoneSystem.instance.m_zoneSize;
 
-            if (!AllowTeleportation(destination, distance)) {
+            if (!PrepareTeleportation(destination)) {
                 return;
             }
 

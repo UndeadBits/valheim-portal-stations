@@ -15,13 +15,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private InputField stationNameInput;
 
         /// <summary>
-        /// Gets the amount of fuel available.
-        /// </summary>
-        public override int GetFuelAmount() {
-            return Int32.MaxValue;
-        }
-
-        /// <summary>
         /// Shows the GUI.
         /// </summary>
         public void Open(Humanoid user, PortalStation station) {

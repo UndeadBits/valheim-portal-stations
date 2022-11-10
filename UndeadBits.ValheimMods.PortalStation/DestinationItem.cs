@@ -65,14 +65,15 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private void UpdateGUI() {
             var cost = 0;
             var affordable = false;
-            var ptdGUI = GetComponentInParent<BaseTeleportationGUI>();
-            if (ptdGUI) {
-                var user = ptdGUI.CurrentUser;
+            var teleportationGUI = GetComponentInParent<BaseTeleportationGUI>();
+            
+            if (teleportationGUI) {
+                var user = teleportationGUI.CurrentUser;
                 if (user) {
                     var distance = Vector3.Distance(user.transform.position, this.destination.position);
-                    var available = ptdGUI.GetFuelAmount();
-                    
-                    cost = PersonalTeleportationDevice.CalculateFuelCost(distance);
+                    var available = teleportationGUI.GetFuelAmount();
+
+                    cost = teleportationGUI.CalculateFuelCost(this.destination);
                     affordable = cost <= available;
                     Jotunn.Logger.LogInfo($"Fuel: {available}, cost: {cost}, distance: {distance}");
                 }
