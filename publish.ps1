@@ -31,6 +31,7 @@ Push-Location -Path (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
 # Plugin name without ".dll"
 $name = "$TargetAssembly" -Replace('.dll')
+$preReleaseTag = "-beta"
 
 # Create the mdb file
 $pdb = "$TargetPath\$name.pdb"
@@ -64,6 +65,7 @@ if($Target.Equals("Release")) {
     $PackageName="PortalStations"
     $PackagePath="$ProjectPath\$Package"
     $Version=(Get-Command "$TargetPath\$TargetAssembly").FileVersionInfo.FileVersion.Replace(".", "_")
+    $FullVersion="$Version$preReleaseTag"
 
     Write-Host "$PackagePath\$TargetAssembly"
     New-Item -Type Directory -Path "$PackagePath\plugins\$PackageName" -Force
@@ -79,8 +81,8 @@ if($Target.Equals("Release")) {
     Copy-Item -Path "$ProjectPath\..\CHANGELOG.md" -Destination "$PackagePath\CHANGELOG.md" -Force
     Copy-Item -Path "$ProjectPath\..\README.md" -Destination "$PackagePath\README.md" -Force
     
-    Compress-Archive -Path "$PackagePath\*" -DestinationPath "$ProjectPath\..\dist\ThunderStore\Valheim_$($name)_v$Version.zip" -Force
-    Compress-Archive -Path "$PackagePath\plugins\*" -DestinationPath "$ProjectPath\..\dist\Valheim_$($name)_v$Version.zip" -Force
+    Compress-Archive -Path "$PackagePath\*" -DestinationPath "$ProjectPath\..\dist\ThunderStore\Valheim_$($name)_v$FullVersion.zip" -Force
+    Compress-Archive -Path "$PackagePath\plugins\*" -DestinationPath "$ProjectPath\..\dist\Valheim_$($name)_v$FullVersion.zip" -Force
 }
 
 # Pop Location
