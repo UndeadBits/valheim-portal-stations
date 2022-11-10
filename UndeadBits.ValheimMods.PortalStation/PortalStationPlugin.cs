@@ -404,7 +404,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Sends the current list of portal station destinations to the given client.
         /// </summary>
         private void SendDestinationsToClient(long target) {
-            var destinations = this.serverPortalStations.Keys.Select(x => new PortalStation.Destination(x)).ToList();
+            var destinations = this.serverPortalStations.Keys
+                .Select(x => new PortalStation.Destination(x))
+                .OrderBy(x => x.stationName)
+                .ToList();
             var package = new ZPackage();
             package.Write(destinations.Count);
 
