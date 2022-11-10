@@ -279,8 +279,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.personalTeleportationDeviceGUIDestinationItemPrefab.AddComponent<DestinationItem>();
 
             var config = new ItemConfig {
-                CraftingStation = "piece_forge",
-                RepairStation = "piece_forge",
+                CraftingStation = "forge",
+                RepairStation = "forge",
                 MinStationLevel = 3
             };
             
