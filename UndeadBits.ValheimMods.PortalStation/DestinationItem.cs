@@ -20,16 +20,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         /// ReSharper disable once InconsistentNaming
         public readonly UnityEvent<PortalStation.Destination> onClick = new UnityEvent<PortalStation.Destination>();
-
-        /// <summary>
-        /// Gets or sets the destination data.
-        /// </summary>
-        public PortalStation.Destination Destination {
-            get {
-                return this.destination;
-            }
-        }
-
+        
         /// <summary>
         /// Sets the destination which this item represents.
         /// </summary>
@@ -80,7 +71,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
             
             if (this.stationNameText) {
-                this.stationNameText.text = this.destination.stationName;
+                this.stationNameText.text = this.destination == null ? "N/A" : this.destination.stationName;
             }
         }
 
@@ -88,7 +79,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Handles a click on the teleport button.
         /// </summary>
         private void OnTeleportClick() {
-            if (this.destination.id.IsNone()) {
+            if (this.destination == null) {
                 return;
             }
 

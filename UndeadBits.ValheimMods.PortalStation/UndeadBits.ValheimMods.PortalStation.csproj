@@ -87,8 +87,10 @@
     <Compile Include="FindReferenceHelper.cs" />
     <Compile Include="PersonalTeleportationDevice.cs" />
     <Compile Include="PersonalTeleportationDeviceGUI.cs" />
+    <Compile Include="PersonalTeleportationDeviceUser.cs" />
     <Compile Include="PortalStation.cs" />
     <Compile Include="PortalStationGUI.cs" />
+    <Compile Include="PortalStationUser.cs" />
     <Compile Include="Properties\IgnoreAccessModifiers.cs" />
     <Compile Include="PortalStationPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

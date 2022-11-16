@@ -6,6 +6,9 @@ using UnityEngine.UI;
 
 namespace UndeadBits.ValheimMods.PortalStation {
     
+    /// <summary>
+    /// Base class for teleportation GUIs.
+    /// </summary>
     public abstract class BaseTeleportationGUI : UIElementBase {
         private const float GUI_UPDATE_INTERVAL = 1.0f;
         
@@ -13,14 +16,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private Humanoid currentUser;
         private RectTransform destinationItemListRoot;
         private bool blockUserInput;
-        private bool noTeleportPrevention = true;
-
-        /// <summary>
-        /// Gets the current user.
-        /// </summary>
-        public Humanoid CurrentUser {
-            get { return this.currentUser; }
-        }
 
         /// <summary>
         /// Gets the amount of fuel available.
@@ -35,6 +30,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <returns></returns>
         public virtual int CalculateFuelCost(PortalStation.Destination destination) {
             return 0;
+        }
+
+        /// <summary>
+        /// Gets the user which is currently using the GUI.
+        /// </summary>
+        protected Humanoid CurrentUser {
+            get { return this.currentUser; }
         }
 
         /// <summary>
@@ -116,6 +118,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
         protected abstract DestinationItem CreateDestinationItem(RectTransform parent);
 
         /// <summary>
+        /// Gets all available destinations to travel to.
+        /// </summary>
+        protected virtual IEnumerable<PortalStation.Destination> GetDestinations() {
+            return PortalStationPlugin.Instance.AvailableDestinations;
+        }
+
+        /// <summary>
         /// Updates GUI visibility and destinations
         /// </summary>
         protected void UpdateDestinationItems() {
@@ -125,8 +134,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
             var stationCount = 0;
             var itemListHead = this.destinationItems.First;
-
-            foreach (var destination in PortalStationPlugin.Instance.AvailableDestinations) {
+            
+            foreach (var destination in GetDestinations()) {
                 if (!FilterDestination(destination)) {
                     continue;
                 }
@@ -157,41 +166,37 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         /// <param name="destination">The destination to teleport to</param>
         /// <returns>Whether teleportation is possible or not</returns>
-        protected virtual bool PrepareTeleportation(PortalStation.Destination destination) {
+        protected virtual bool CanTeleport(PortalStation.Destination destination) {
             if (!this.currentUser) {
                 return false;
             }
-            
-            if (ZoneSystem.instance.GetGlobalKey("noportals")) {
-                this.currentUser.Message(MessageHud.MessageType.Center, "$msg_blocked");
-                return false;
-            }
-            
-            if (!this.noTeleportPrevention && !this.currentUser.IsTeleportable()) {
-                this.currentUser.Message(MessageHud.MessageType.Center, "$msg_noteleport");
-                return false;
-            }
-            
-            return true;
+
+            return PortalStationPlugin.Instance.CanTeleportPlayer(this.currentUser);
         }
-        
+
+        /// <summary>
+        /// Teleports the a player to the given destination.
+        /// </summary>
+        /// <param name="player">The player to teleport</param>
+        /// <param name="destination">The desired destination</param>
+        protected abstract void TeleportTo(Humanoid player, PortalStation.Destination destination);
+
         /// <summary>
         /// Teleports the given user to this portal.
         /// </summary>
         /// <param name="destination">The destination to teleport to</param>
         private void OnRequestTeleportation(PortalStation.Destination destination) {
-            var distance = Vector3.Distance(this.currentUser.transform.position, destination.position);
-            var distant = distance >= ZoneSystem.instance.m_zoneSize;
-
-            if (!PrepareTeleportation(destination)) {
+            if (!CanTeleport(destination)) {
                 return;
             }
 
-            this.currentUser.TeleportTo(destination.position, destination.rotation, distant);
-
+            TeleportTo(this.currentUser, destination);
             Close();
         }
 
+        /// <summary>
+        /// Handles a change to available destinations.
+        /// </summary>
         private void OnChangeDestinations() {
             if (!this.currentUser || !this.gameObject.activeInHierarchy) {
                 return;

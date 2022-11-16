@@ -1,8 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace UndeadBits.ValheimMods.PortalStation {
     
+    /// <summary>
+    /// Logic for personal teleportation device GUI.
+    /// </summary>
     public class PersonalTeleportationDeviceGUI : BaseTeleportationGUI {
         private ItemDrop.ItemData device;
 
@@ -24,6 +29,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return Int32.MaxValue;
             }
 
+            if (destination == null) {
+                return Int32.MaxValue;
+            }
+
             var distance = Vector3.Distance(user.transform.position, destination.position);
             
             return PersonalTeleportationDevice.CalculateFuelCost(this.device, distance);
@@ -34,9 +43,42 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         public void Open(Humanoid user, ItemDrop.ItemData item) {
             this.device = item;
+            
             OpenGUI(user);
         }
 
+        /// <summary>
+        /// Gets all available destinations to travel to.
+        /// </summary>
+        protected override IEnumerable<PortalStation.Destination> GetDestinations() {
+            var user = CurrentUser;
+            if (user) {
+                var view = user.GetComponent<ZNetView>();
+                var worldId = ZNet.instance.GetWorldUID();
+                
+                if (view && view.IsValid() && worldId != 0) {
+                    var travelBackDestinationBase64 = view.GetZDO().GetString(PersonalTeleportationDevice.PROP_TELEPORT_BACK_POINT);
+                    Vector3 position;
+                    Quaternion rotation;
+
+                    if (PersonalTeleportationDevice.DeserializeTeleportBackPoint(travelBackDestinationBase64, out position, out rotation)) {
+                        yield return new PortalStation.Destination(ZDOID.None) {
+                            position = position,
+                            rotation = rotation,
+                            stationName = PortalStationPlugin.Localization.TryTranslate("$travel_back"),
+                        };
+                    }
+                }
+            }
+
+            foreach (var item in base.GetDestinations()) {
+                yield return item;
+            }
+        }
+
+        /// <summary>
+        /// Closes the GUI
+        /// </summary>
         protected override void Close() {
             base.Close();
 
@@ -55,8 +97,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         /// <param name="destination">The destination to teleport to</param>
         /// <returns>Whether teleportation is possible or not</returns>
-        protected override bool PrepareTeleportation(PortalStation.Destination destination) {
-            if (!base.PrepareTeleportation(destination)) {
+        protected override bool CanTeleport(PortalStation.Destination destination) {
+            if (!base.CanTeleport(destination)) {
                 return false;
             }
             
@@ -65,8 +107,23 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return false;
             }
 
-            return PersonalTeleportationDevice.PrepareTeleportation(user, this.device, destination);
+            var distance = Vector3.Distance(user.transform.position, destination.position);
+
+            return PersonalTeleportationDevice.CanPlayerUseDevice(user, this.device, distance);
         }
+        
+        /// <summary>
+        /// Teleports the a player to the given destination.
+        /// </summary>
+        /// <param name="player">The player to teleport</param>
+        /// <param name="destination">The desired destination</param>
+        protected override void TeleportTo(Humanoid player, PortalStation.Destination destination) {
+            var user = player.GetComponent<PersonalTeleportationDeviceUser>();
+            if (user) {
+                user.Use(this.device, destination);
+            }
+        }
+
     }
     
 }
