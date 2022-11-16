@@ -1,4 +1,5 @@
 using BepInEx;
+using BepInEx.Configuration;
 using HarmonyLib;
 using Jotunn.Configs;
 using Jotunn.Entities;
@@ -22,9 +23,30 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
         public const string PLUGIN_VERSION = "0.9.0";
+        
         private const float STATION_SYNC_INTERVAL = 1.0f;
 
+        private const string CONFIG_SECTION_GENERAL = "General";
+        private const string CONFIG_SECTION_PERSONAL_TELEPORTATION_DEVICE = "PersonalTeleportationDevice";
+        
+        private const string CONFIG_KEY_IGNORE_TELEPORTATION_RESTRICTIONS = "ignoreTeleportationRestrictions";
+        private const string CONFIG_KEY_IGNORE_TELEPORTATION_RESTRICTIONS_DESC = "Whether vanilla teleportation restrictions will be ignored by portal stations and personal teleportation devices.";
+        private const bool CONFIG_KEY_IGNORE_TELEPORTATION_RESTRICTIONS_DEFAULT_VALUE = false;
+        
+        private const string CONFIG_KEY_PERSONAL_TELEPORTATION_DEVICE_FUEL_ITEM_NAME = "fuelItemName";
+        private const string CONFIG_KEY_PERSONAL_TELEPORTATION_DEVICE_FUEL_ITEM_NAME_DESC = "The fuel item to use.\nLeave empty to disable fuel consumption.";
+        private const string CONFIG_KEY_PERSONAL_TELEPORTATION_DEVICE_FUEL_ITEM_NAME_DEFAULT_VALUE = "GreydwarfEye";
+
+        private const string CONFIG_KEY_TELEPORTATION_DISTANCE_PER_FUEL_ITEM = "teleportationDistancePerFuelItem";
+        private const string CONFIG_KEY_TELEPORTATION_DISTANCE_PER_FUEL_ITEM_DESC = "The teleportation distance per fuel item.";
+        private const float CONFIG_KEY_TELEPORTATION_DISTANCE_PER_FUEL_ITEM_DEFAULT_VALUE = 1000;
+
+        private const string CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE = "additionalTeleportationDistancePerUpgrade";
+        private const string CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE_DESC = "The additional teleportation distance per device upgrade.";
+        private const float CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE_DEFAULT_VALUE = 1000;
+        
         public static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+        
         private readonly Harmony harmony = new Harmony(PLUGIN_GUID); 
 
         private readonly List<PortalStation.Destination> availableDestinations = new List<PortalStation.Destination>();
@@ -35,9 +57,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private GameObject portalStationPrefab;
         private CustomPiece portalStationPiece;
         
-        // TODO: Add a configuration key for this
-        private bool ignoreTeleportationRestrictions = true;
-
         private GameObject portalStationGUIPrefab;
         private GameObject portalStationDestinationItemPrefab;
 
@@ -49,6 +68,16 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
         private PortalStationGUI portalStationGUIInstance;
         private PersonalTeleportationDeviceGUI personalTeleportationDeviceGUIInstance;
+
+        private ConfigEntry<bool> ignoreTeleportationRestrictionsConfigEntry;
+        private ConfigEntry<string> fuelItemNameConfigEntry;
+        private ConfigEntry<float> teleportationDistancePerFuelItemConfigEntry;
+        private ConfigEntry<float> additionalTravelDistancePerUpgradeConfigEntry;
+
+        private string fuelItemName;
+        private ItemDrop fuelItem;
+        private bool useFuel;
+
 
         #region Harmony Patches
         
@@ -116,7 +145,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Raised every time when a client received a new destination list from the server.
         /// </summary>
         public readonly UnityEvent ChangeDestinations = new UnityEvent();
-        
+
         /// <summary>
         /// Gets the available destinations to teleport to.
         /// </summary>
@@ -124,6 +153,48 @@ namespace UndeadBits.ValheimMods.PortalStation {
             get { return this.availableDestinations; }
         }
 
+        /// <summary>
+        /// Gets the name of the fuel item to use for the personal teleportation device.
+        /// </summary>
+        public string FuelItemName {
+            get { return this.fuelItemName; }
+        }
+
+        /// <summary>
+        /// Gets the name of the fuel item to use for the personal teleportation device.
+        /// </summary>
+        public string FuelItemId {
+            get { return this.fuelItem ? this.fuelItem.m_itemData.m_shared.m_name : null; }
+        }
+
+        /// <summary>
+        /// Gets the fuel item to use.
+        /// </summary>
+        public ItemDrop FuelItem {
+            get { return this.fuelItem; }
+        }
+
+        /// <summary>
+        /// Determines whether to use fuel for the personal teleportation device or not.
+        /// </summary>
+        public bool UseFuel {
+            get { return this.useFuel; }
+        }
+
+        /// <summary>
+        /// Gets the travel distance per fuel item.
+        /// </summary>
+        public float TravelDistancePerFuelItem {
+            get { return this.teleportationDistancePerFuelItemConfigEntry?.Value ?? CONFIG_KEY_TELEPORTATION_DISTANCE_PER_FUEL_ITEM_DEFAULT_VALUE; }
+        }
+
+        /// <summary>
+        /// Gets the additional travel distance per device upgrade.
+        /// </summary>
+        public float AdditionalTeleportationDistancePerUpgrade {
+            get { return this.additionalTravelDistancePerUpgradeConfigEntry?.Value ?? CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE_DEFAULT_VALUE; }
+        }
+        
         /// <summary>
         /// Generates a name for a station based on other stations in the world.
         ///
@@ -215,16 +286,16 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return false;
             }
 
-            if (this.ignoreTeleportationRestrictions || player.IsTeleportable()) {
-                return true;
+            // ReSharper disable once InvertIf it's better readable this way around
+            if (!player.IsTeleportable() && !this.ignoreTeleportationRestrictionsConfigEntry.Value) {
+                if (player) {
+                    player.Message(MessageHud.MessageType.Center, "$msg_noteleport");
+                }
+
+                return false;
             }
 
-            if (player) {
-                player.Message(MessageHud.MessageType.Center, "$msg_noteleport");
-            }
-
-            return false;
-
+            return true;
         }
 
         /// <summary>
@@ -234,14 +305,24 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.harmony.PatchAll();
             
             Instance = this;
+
+            ItemManager.OnItemsRegistered += UpdateFuelItem;
             PrefabManager.OnPrefabsRegistered += InitDestinationSync;
 
             this.assetBundle = AssetUtils.LoadAssetBundleFromResources("Assets.portal_station_assets");
 
+            AddConfigKeys();
             AddPortalStationPiece();
             AddPersonalTeleportationDevice();
-            
+
             InvokeRepeating(nameof(SyncAvailablePortalStations), STATION_SYNC_INTERVAL, STATION_SYNC_INTERVAL);
+        }
+
+        /// <summary>
+        /// Tries to set up destination sync.
+        /// </summary>
+        private void Start() {
+            InitDestinationSync();
         }
 
         /// <summary>
@@ -267,13 +348,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             if (this.personalTeleportationDeviceGUIInstance) {
                 Destroy(this.personalTeleportationDeviceGUIInstance.gameObject);
             }
-        }
-
-        /// <summary>
-        /// Tries to set up destination sync.
-        /// </summary>
-        private void Start() {
-            InitDestinationSync();
         }
 
         /// <summary>
@@ -316,6 +390,46 @@ namespace UndeadBits.ValheimMods.PortalStation {
             return instance.GetComponent<PersonalTeleportationDeviceGUI>();
         }
 
+        /// <summary>
+        /// Adds configuration keys.
+        /// </summary>
+        private void AddConfigKeys() {
+            Config.SaveOnConfigSet = true;
+            Config.ConfigReloaded += (s, e) => UpdateFuelItem();
+            Config.SettingChanged += (s, e) => UpdateFuelItem();
+            
+            this.ignoreTeleportationRestrictionsConfigEntry = Config.Bind(
+                CONFIG_SECTION_GENERAL,
+                CONFIG_KEY_IGNORE_TELEPORTATION_RESTRICTIONS,
+                CONFIG_KEY_IGNORE_TELEPORTATION_RESTRICTIONS_DEFAULT_VALUE,
+                new ConfigDescription(CONFIG_KEY_IGNORE_TELEPORTATION_RESTRICTIONS_DESC, null, new ConfigurationManagerAttributes {
+                    IsAdminOnly = true
+                }));
+            this.fuelItemNameConfigEntry = Config.Bind(
+                CONFIG_SECTION_PERSONAL_TELEPORTATION_DEVICE,
+                CONFIG_KEY_PERSONAL_TELEPORTATION_DEVICE_FUEL_ITEM_NAME,
+                CONFIG_KEY_PERSONAL_TELEPORTATION_DEVICE_FUEL_ITEM_NAME_DEFAULT_VALUE,
+                new ConfigDescription(CONFIG_KEY_PERSONAL_TELEPORTATION_DEVICE_FUEL_ITEM_NAME_DESC, null, new ConfigurationManagerAttributes {
+                    IsAdminOnly = true
+                }));
+            this.fuelItemNameConfigEntry.SettingChanged += (s, e) => UpdateFuelItem();
+            
+            this.teleportationDistancePerFuelItemConfigEntry = Config.Bind(
+                CONFIG_SECTION_PERSONAL_TELEPORTATION_DEVICE,
+                CONFIG_KEY_TELEPORTATION_DISTANCE_PER_FUEL_ITEM,
+                CONFIG_KEY_TELEPORTATION_DISTANCE_PER_FUEL_ITEM_DEFAULT_VALUE,
+                new ConfigDescription(CONFIG_KEY_TELEPORTATION_DISTANCE_PER_FUEL_ITEM_DESC, null, new ConfigurationManagerAttributes {
+                    IsAdminOnly = true
+                }));
+            this.additionalTravelDistancePerUpgradeConfigEntry = Config.Bind(
+                CONFIG_SECTION_PERSONAL_TELEPORTATION_DEVICE,
+                CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE,
+                CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE_DEFAULT_VALUE,
+                new ConfigDescription(CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE_DESC, null, new ConfigurationManagerAttributes {
+                    IsAdminOnly = true
+                }));
+        }
+        
         /// <summary>
         /// Adds and configures the portal station piece.
         /// </summary>
@@ -390,9 +504,45 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 ZRoutedRpc.instance.Register<ZPackage>(nameof(RPC_SyncStationList), RPC_SyncStationList);
 
                 ClearCachedData();
+                UpdateFuelItem();
             } catch (Exception ex) {
                 Jotunn.Logger.LogError($"Unable to register RPCs: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Updates the fuel item to use.
+        /// </summary>
+        private void UpdateFuelItem() {
+            this.fuelItemName = this.fuelItemNameConfigEntry?.Value;
+            
+            if (String.IsNullOrEmpty(this.fuelItemName)) {
+                Jotunn.Logger.LogWarning($"No fuel item configured, personal teleportation device will not cost anything.");
+                this.fuelItem = null;
+                this.useFuel = false;
+                return;            
+            }
+
+            this.useFuel = true;
+
+            if (ObjectDB.instance == null) {
+                Jotunn.Logger.LogWarning($"ObjectDB not ready.");
+                return;
+            }
+
+            var fuelItemGameObject = ObjectDB.instance.GetItemPrefab(this.fuelItemName);
+            if (!fuelItemGameObject) {
+                Jotunn.Logger.LogWarning($"Can't resolve fuel item with name \"{this.fuelItemName}\" - teleportation will not be possible.");
+                this.fuelItem = null;
+                return;
+            }
+            
+            this.fuelItem = fuelItemGameObject ? fuelItemGameObject.GetComponentInChildren<ItemDrop>(true) : null;
+            if (!this.fuelItem) {
+                Jotunn.Logger.LogWarning($"Can't resolve fuel item drop with name \"{this.fuelItemName}\" - teleportation will not be possible.");
+            }
+            
+            Jotunn.Logger.LogInfo($"Using {this.fuelItemName} as fuel item");
         }
 
         /// <summary>
