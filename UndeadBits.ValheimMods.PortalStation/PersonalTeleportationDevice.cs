@@ -17,21 +17,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// The name of the item.
         /// </summary>
         public const string ITEM_NAME = "$item_personal_teleportation_device";
-        
-        /// <summary>
-        /// The name of the fuel item to use.
-        /// </summary>
-        private const string FUEL_ITEM_NAME = "$item_greydwarfeye";
-        
-        /// <summary>
-        /// The distance which can be traveled with one fuel item. 
-        /// </summary>
-        private const float TRAVEL_DISTANCE_PER_FUEL_ITEM = 1000;
-
-        /// <summary>
-        /// How much the travel distance is increased by item quality
-        /// </summary>
-        private const float TRAVEL_DISTANCE_PER_LEVEL = 1000;
 
         /// <summary>
         /// Gets the amount of fuel left in a users inventory.
@@ -44,7 +29,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return 0;
             }
 
-            return inventory.CountItems(FUEL_ITEM_NAME);
+            var fuelItem = PortalStationPlugin.Instance.FuelItemId;
+            if (String.IsNullOrEmpty(fuelItem)) {
+                return 0;
+            }
+
+            return inventory.CountItems(fuelItem);
         }
         
         /// <summary>
@@ -54,7 +44,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="distance">The travel distance</param>
         /// <returns>The fuel cost</returns>
         public static int CalculateFuelCost(ItemDrop.ItemData deviceData, float distance) {
-            var travelDistancePerFuelItem = TRAVEL_DISTANCE_PER_FUEL_ITEM + (Math.Max(0, deviceData.m_quality - 1) * TRAVEL_DISTANCE_PER_LEVEL);
+            if (!PortalStationPlugin.Instance.UseFuel) {
+                return 0;
+            }
+            
+            var travelDistancePerFuelItem = PortalStationPlugin.Instance.TravelDistancePerFuelItem
+                                            + (Math.Max(0, deviceData.m_quality - 1) * PortalStationPlugin.Instance.AdditionalTeleportationDistancePerUpgrade);
             
             return Mathf.Max(1, Mathf.CeilToInt(distance / travelDistancePerFuelItem));
         }
@@ -110,8 +105,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
             if (inventory == null) {
                 return;
             }
-
-            inventory.RemoveItem(FUEL_ITEM_NAME, fuelCost);
+            
+            var fuelItem = PortalStationPlugin.Instance.FuelItemId;
+            if (String.IsNullOrEmpty(fuelItem)) {
+                return;
+            }
+            
+            inventory.RemoveItem(fuelItem, fuelCost);
             inventory.Changed();
         }
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jotunn.Managers;
+using System;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -14,6 +15,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private Text fuelCostText;
         private Color originalFuelColor;
         private Button teleportButton;
+        private Image fuelImage;
+        private RectTransform fuelElement;
 
         /// <summary>
         /// Raised when the "teleport" button has been clicked. 
@@ -40,7 +43,17 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.stationNameText = RequireComponentByName<Text>("$part_StationName");
             this.teleportButton = RequireComponentByName<Button>("$part_TeleportButton");
             this.fuelCostText = RequireComponentByName<Text>("$part_FuelCount", true);
+            this.fuelImage = RequireComponentByName<Image>("$part_FuelImage", true);
+            this.fuelElement = RequireComponentByName<RectTransform>("$part_FuelElement", true);
             this.originalFuelColor = this.fuelCostText ? this.fuelCostText.color : Color.black;
+
+            var fuelItem = PortalStationPlugin.Instance.FuelItem;
+            if (this.fuelImage && fuelItem) {
+                var icon = fuelItem.m_itemData.m_shared.m_icons?[0];
+                if (icon) {
+                    this.fuelImage.sprite = icon;
+                }
+            }
             
             if (this.teleportButton) {
                 this.teleportButton.onClick.AddListener(OnTeleportClick);
@@ -60,10 +73,20 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 cost = teleportationGUI.CalculateFuelCost(this.destination);
                 affordable = cost <= available;
             }
+            
+            if (cost <= 0) {
+                if (this.fuelElement && this.fuelElement.gameObject.activeInHierarchy) {
+                    this.fuelElement.gameObject.SetActive(false);
+                }
+            } else {
+                if (this.fuelElement && !this.fuelElement.gameObject.activeInHierarchy) {
+                    this.fuelElement.gameObject.SetActive(true);
+                }
 
-            if (this.fuelCostText) {
-                this.fuelCostText.text = $"{cost}";
-                this.fuelCostText.color = affordable ? this.originalFuelColor : Color.red;
+                if (this.fuelCostText) {
+                    this.fuelCostText.text = $"{cost}";
+                    this.fuelCostText.color = affordable ? this.originalFuelColor : Color.red;
+                }
             }
 
             if (this.teleportButton) {
