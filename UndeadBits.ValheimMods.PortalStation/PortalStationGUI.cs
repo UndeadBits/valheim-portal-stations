@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace UndeadBits.ValheimMods.PortalStation {
     
     /// <summary>
-    /// GUI which lets the user rename a station or teleport to other ones.
+    /// Logic for portal station GUI.
     /// </summary>
     public class PortalStationGUI : BaseTeleportationGUI {
         private PortalStation currentPortalStation;
@@ -79,6 +79,51 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
+        /// Updates the GUI visibility.
+        /// </summary>
+        protected override void UpdateGUI() {
+            base.UpdateGUI();
+
+            var currentUser = CurrentUser;
+            if (!currentUser || !this.currentPortalStation || !this.currentPortalStation.InUseDistance(currentUser)) {
+                Close();
+                return;
+            }
+            
+            var view = this.currentPortalStation.GetComponent<ZNetView>();
+            if (!view || !view.IsValid()) {
+                Close();
+            }
+        }
+
+        /// <summary>
+        /// Teleports the a player to the given destination.
+        /// </summary>
+        /// <param name="player">The player to teleport</param>
+        /// <param name="destination">The desired destination</param>
+        protected override void TeleportTo(Humanoid player, PortalStation.Destination destination) {
+            var user = player.GetComponent<PortalStationUser>();
+            if (user) {
+                user.Use(this.currentPortalStation.AsDestination(), destination);
+            }
+        }
+
+        /// <summary>
+        /// Can be overriden to filter destinations out.
+        /// </summary>
+        protected override bool FilterDestination(PortalStation.Destination destination) {
+            if (!base.FilterDestination(destination)) {
+                return false;
+            }
+
+            if (this.currentPortalStation) {
+                return this.currentPortalStation.StationId != destination.id;
+            }
+
+            return true;
+        }
+        
+        /// <summary>
         /// Resets the station name input field.
         /// </summary>
         private void ResetStationName() {
@@ -102,39 +147,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
 
             UpdateDestinationItems();
-        }
-
-        /// <summary>
-        /// Updates the GUI visibility.
-        /// </summary>
-        protected override void UpdateGUI() {
-            base.UpdateGUI();
-
-            var currentUser = CurrentUser;
-            if (!currentUser || !this.currentPortalStation || !this.currentPortalStation.InUseDistance(currentUser)) {
-                Close();
-                return;
-            }
-            
-            var view = this.currentPortalStation.GetComponent<ZNetView>();
-            if (!view || !view.IsValid()) {
-                Close();
-            }
-        }
-
-        /// <summary>
-        /// Can be overriden to filter destinations out.
-        /// </summary>
-        protected override bool FilterDestination(PortalStation.Destination destination) {
-            if (!base.FilterDestination(destination)) {
-                return false;
-            }
-
-            if (this.currentPortalStation) {
-                return this.currentPortalStation.StationId != destination.id;
-            }
-
-            return true;
         }
 
     }

@@ -1,7 +1,9 @@
 ﻿{
-  "$piece_portal_station": "Portal Station",
-  "$piece_portal_station_description": "A powerful portal station capable of omnidirectional teleportation.",
-  "$item_personal_teleportation_device": "Personal Teleportation Device",
-  "$item_personal_teleportation_device_description": "A personal teleportation device used to quickly teleport to any available portal station.",
-  "$item_personal_teleportation_device_usage_hint": "Teleport"
+  "piece_portal_station": "Portal Station",
+  "piece_portal_station_description": "A powerful portal station capable of omnidirectional teleportation.",
+  "item_personal_teleportation_device": "Personal Teleportation Device",
+  "item_personal_teleportation_device_description": "A personal teleportation device useful to quickly teleport to any available portal station.",
+  "item_personal_teleportation_device_usage_hint": "Teleport",
+  "auto_portal_station_name": "Portal Station #{0:00}",
+  "travel_back": "Travel Back"
 }

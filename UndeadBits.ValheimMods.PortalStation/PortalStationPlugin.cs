@@ -7,29 +7,36 @@ using Jotunn.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
 
 namespace UndeadBits.ValheimMods.PortalStation {
+    
+    /// <summary>
+    /// Portal station plugin - main entry point.
+    /// </summary>
     [BepInPlugin(PLUGIN_GUID, PLUGIN_NAME, PLUGIN_VERSION)]
     [BepInDependency(Jotunn.Main.ModGuid)]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
     internal class PortalStationPlugin : BaseUnityPlugin {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
-        public const string PLUGIN_VERSION = "0.8.0";
+        public const string PLUGIN_VERSION = "0.9.0";
         private const float STATION_SYNC_INTERVAL = 1.0f;
 
-        private static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+        public static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
         private readonly Harmony harmony = new Harmony(PLUGIN_GUID); 
 
         private readonly List<PortalStation.Destination> availableDestinations = new List<PortalStation.Destination>();
-        private readonly Dictionary<ZDO, PortalStation.Destination> serverPortalStations = new Dictionary<ZDO, PortalStation.Destination>(new ZDOComparer());
+        private readonly Dictionary<ZDOID, PortalStation.Destination> serverPortalStations = new Dictionary<ZDOID, PortalStation.Destination>();
+
         private readonly List<ZDO> tempZDOList = new List<ZDO>();
         private AssetBundle assetBundle;
         private GameObject portalStationPrefab;
         private CustomPiece portalStationPiece;
+        
+        // TODO: Add a configuration key for this
+        private bool ignoreTeleportationRestrictions = true;
 
         private GameObject portalStationGUIPrefab;
         private GameObject portalStationDestinationItemPrefab;
@@ -46,16 +53,32 @@ namespace UndeadBits.ValheimMods.PortalStation {
         #region Harmony Patches
         
         [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.UseItem))]
+        // ReSharper disable once InconsistentNaming
         private class Humanoid_UseItem_Patch {
             [HarmonyPrefix]
+            // ReSharper disable once InconsistentNaming
+            // ReSharper disable once UnusedMember.Local
+            // ReSharper disable once UnusedParameter.Local
             private static bool UseItem(Inventory inventory, ItemDrop.ItemData item, bool fromInventoryGui, Humanoid __instance) {
-                if (item.m_shared.m_name != "$item_personal_teleportation_device") {
+                if (item.m_shared.m_name != PersonalTeleportationDevice.ITEM_NAME) {
                     return true;
                 }
 
                 PersonalTeleportationDevice.UseItem(__instance, inventory, item);
 
                 return false;
+            }
+        }
+        
+        [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.Awake))]
+        // ReSharper disable once InconsistentNaming
+        private class Humanoid_Awake_Patch {
+            [HarmonyPrefix]
+            // ReSharper disable once InconsistentNaming
+            // ReSharper disable once UnusedMember.Local
+            private static void Awake(Humanoid __instance) {
+                __instance.gameObject.AddComponent<PortalStationUser>();
+                __instance.gameObject.AddComponent<PersonalTeleportationDeviceUser>();
             }
         }
         
@@ -93,7 +116,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Raised every time when a client received a new destination list from the server.
         /// </summary>
         public readonly UnityEvent ChangeDestinations = new UnityEvent();
-
+        
         /// <summary>
         /// Gets the available destinations to teleport to.
         /// </summary>
@@ -111,7 +134,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             var stationNumber = 1;
 
             while (true) {
-                var stationName = $"Portal Station #{stationNumber++:000}";
+                var stationName = String.Format(Localization.TryTranslate("$auto_portal_station_name"), stationNumber++);
                 if (stationNames.Contains(stationName)) {
                     continue;
                 }
@@ -170,6 +193,41 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
+        /// Gets a portal station by the given station Id.
+        /// </summary>
+        /// <param name="stationId">The stations id</param>
+        /// <returns>The station or null if not found</returns>
+        public PortalStation.Destination GetPortalStation(ZDOID stationId) {
+            return this.availableDestinations.FirstOrDefault(x => x.id == stationId);
+        }
+
+        /// <summary>
+        /// Determines whether the player can teleport.
+        /// </summary>
+        /// <param name="player">The player</param>
+        /// <returns>Whether teleportation is allowed or not</returns>
+        public bool CanTeleportPlayer(Humanoid player) {
+            if (ZoneSystem.instance.GetGlobalKey("noportals")) {
+                if (player) {
+                    player.Message(MessageHud.MessageType.Center, "$msg_blocked");
+                }
+
+                return false;
+            }
+
+            if (this.ignoreTeleportationRestrictions || player.IsTeleportable()) {
+                return true;
+            }
+
+            if (player) {
+                player.Message(MessageHud.MessageType.Center, "$msg_noteleport");
+            }
+
+            return false;
+
+        }
+
+        /// <summary>
         /// Initializes the plugin.
         /// </summary>
         private void Awake() {
@@ -190,7 +248,25 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Destroys the plugin.
         /// </summary>
         private void OnDestroy() {
-            harmony.UnpatchSelf();
+            this.harmony.UnpatchSelf();
+            this.ClearCachedData();
+        }
+
+        /// <summary>
+        /// Resets the plugin data.
+        /// </summary>
+        private void ClearCachedData() {
+            this.serverPortalStations.Clear();
+            this.availableDestinations.Clear();
+            this.tempZDOList.Clear();
+
+            if (this.portalStationGUIInstance) {
+                Destroy(this.portalStationGUIInstance.gameObject);
+            }
+
+            if (this.personalTeleportationDeviceGUIInstance) {
+                Destroy(this.personalTeleportationDeviceGUIInstance.gameObject);
+            }
         }
 
         /// <summary>
@@ -202,6 +278,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
         /// <summary>
         /// Gets all portal station ZDOs.
+        /// This will only yield all available portal stations on the server because on the client only the current region is known.
         /// </summary>
         private IEnumerable<ZDO> GetPortalStationZDOs() {
             tempZDOList.Clear();
@@ -240,7 +317,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
-        /// Adds the portal station piece.
+        /// Adds and configures the portal station piece.
         /// </summary>
         private void AddPortalStationPiece() {
             if (PieceManager.Instance.GetPiece("$piece_portal_station") != null) {
@@ -269,6 +346,9 @@ namespace UndeadBits.ValheimMods.PortalStation {
             PieceManager.Instance.AddPiece(portalStationPiece);
         }
 
+        /// <summary>
+        /// Adds and configures the personal teleportation device item.
+        /// </summary>
         private void AddPersonalTeleportationDevice() {
             this.personalTeleportationDevicePrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/item_personalteleportationdevice.prefab");
             
@@ -305,15 +385,16 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
                 if (ZNet.instance.IsServer()) {
                     ZRoutedRpc.instance.Register(nameof(RPC_RequestStationList), RPC_RequestStationList);
-                } else {
-                    ZRoutedRpc.instance.Register<ZPackage>(nameof(RPC_SyncStationList), RPC_SyncStationList);
                 }
-                Jotunn.Logger.LogDebug("Added routed RPCs.");
+                
+                ZRoutedRpc.instance.Register<ZPackage>(nameof(RPC_SyncStationList), RPC_SyncStationList);
+
+                ClearCachedData();
             } catch (Exception ex) {
                 Jotunn.Logger.LogError($"Unable to register RPCs: {ex.Message}");
             }
         }
-        
+
         /// <summary>
         /// Sends the current destination list to new peers.
         /// </summary>
@@ -358,18 +439,19 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
             
             var available = new HashSet<ZDO>(GetPortalStationZDOs(), new ZDOComparer());
+            var availableZDOIds = new HashSet<ZDOID>(available.Select(x => x.m_uid));
             if (this.serverPortalStations.Count == 0 && available.Count == 0) {
                 return;
             }
             
-            var current = new HashSet<ZDO>(this.serverPortalStations.Keys, new ZDOComparer());
+            var current = new HashSet<ZDOID>(this.serverPortalStations.Keys);
             var removeCount = 0;
             var addCount = 0;
             var updateCount = 0;
             
             // Check for removed stations
             foreach (var item in current) {
-                if (available.Contains(item)) {
+                if (availableZDOIds.Contains(item)) {
                     continue;
                 }
 
@@ -379,18 +461,18 @@ namespace UndeadBits.ValheimMods.PortalStation {
             
             // Check for added stations
             foreach (var item in available) {
-                if (current.Contains(item)) {
+                if (current.Contains(item.m_uid)) {
                     continue;
                 }
 
-                this.serverPortalStations.Add(item, new PortalStation.Destination(item));
+                this.serverPortalStations.Add(item.m_uid, new PortalStation.Destination(item));
 
                 addCount++;
             }
             
             // Check for updated stations
             foreach (var item in this.serverPortalStations) {
-                if (item.Value.UpdateFromZDO(item.Key)) {
+                if (item.Value.UpdateFromZDO()) {
                     updateCount++;
                 }
             }
@@ -404,10 +486,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Sends the current list of portal station destinations to the given client.
         /// </summary>
         private void SendDestinationsToClient(long target) {
-            var destinations = this.serverPortalStations.Keys
-                .Select(x => new PortalStation.Destination(x))
-                .OrderBy(x => x.stationName)
+            var destinations = this.serverPortalStations.Values   
+                .OrderBy(x => x.stationName ?? "")
                 .ToList();
+            
             var package = new ZPackage();
             package.Write(destinations.Count);
 
