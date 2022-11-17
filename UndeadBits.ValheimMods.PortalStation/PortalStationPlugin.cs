@@ -23,7 +23,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
         public const string PLUGIN_VERSION = "0.9.0";
-        
+
         private const float STATION_SYNC_INTERVAL = 1.0f;
 
         private const string CONFIG_SECTION_GENERAL = "General";
