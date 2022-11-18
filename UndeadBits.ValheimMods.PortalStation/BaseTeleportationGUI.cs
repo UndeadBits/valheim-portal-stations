@@ -18,6 +18,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private Humanoid currentUser;
         private ZNetView currentUserZNetView;
         private RectTransform destinationItemListRoot;
+        private ScrollRect scrollRect;
         private bool blockUserInput;
 
         /// <summary>
@@ -63,6 +64,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
             
             this.destinationItems.Clear();
+            this.scrollRect.verticalNormalizedPosition = 0;
+            this.scrollRect.horizontalNormalizedPosition = 0;
 
             PortalStationPlugin.Instance.RequestPortalStationDestinationsFromServer();
 
@@ -93,6 +96,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         protected virtual void Awake() {
             this.destinationItemListRoot = RequireComponentByName<RectTransform>("$part_Content");
+            this.scrollRect = RequireComponentByName<ScrollRect>("$part_ScrollView");
 
             var closeButton = RequireComponentByName<Button>("$part_CloseButton");
             if (closeButton) {
