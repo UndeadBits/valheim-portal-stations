@@ -13,7 +13,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private const float GUI_UPDATE_INTERVAL = 1.0f;
         
         private readonly LinkedList<DestinationItem> destinationItems = new LinkedList<DestinationItem>();
+        private readonly List<PortalStation.Destination> cachedDestinationList = new List<PortalStation.Destination>();
+
         private Humanoid currentUser;
+        private ZNetView currentUserZNetView;
         private RectTransform destinationItemListRoot;
         private bool blockUserInput;
 
@@ -40,11 +43,19 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
+        /// Gets the ZNetView of the user which is currently using the GUI.
+        /// </summary>
+        protected ZNetView CurrentUserView {
+            get { return this.currentUserZNetView; }
+        }
+        
+        /// <summary>
         /// Shows the GUI.
         /// </summary>
         protected void OpenGUI(Humanoid user) {
             this.currentUser = user;
-            
+            this.currentUserZNetView = user.m_nview;
+
             this.gameObject.SetActive(true);
 
             foreach (var item in this.destinationItems) {
@@ -54,7 +65,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.destinationItems.Clear();
 
             PortalStationPlugin.Instance.RequestPortalStationDestinationsFromServer();
-            
+
+            UpdateDestinationList(this.cachedDestinationList);
             UpdateDestinationItems();
 
             if (!this.blockUserInput) {
@@ -117,11 +129,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         protected abstract DestinationItem CreateDestinationItem(RectTransform parent);
 
+
         /// <summary>
-        /// Gets all available destinations to travel to.
+        /// Updates the list of destinations to which the user can travel.
         /// </summary>
-        protected virtual IEnumerable<PortalStation.Destination> GetDestinations() {
-            return PortalStationPlugin.Instance.AvailableDestinations;
+        protected virtual void UpdateDestinationList(List<PortalStation.Destination> destinations) {
+            destinations.Clear();
+            destinations.AddRange(PortalStationPlugin.Instance.AvailableDestinations);
         }
 
         /// <summary>
@@ -135,7 +149,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             var stationCount = 0;
             var itemListHead = this.destinationItems.First;
             
-            foreach (var destination in GetDestinations()) {
+            foreach (var destination in this.cachedDestinationList) {
                 if (!FilterDestination(destination)) {
                     continue;
                 }
@@ -202,6 +216,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return;
             }
             
+            UpdateDestinationList(this.cachedDestinationList);
             UpdateDestinationItems();
         }
 

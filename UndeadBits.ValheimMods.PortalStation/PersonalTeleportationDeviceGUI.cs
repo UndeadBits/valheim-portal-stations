@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace UndeadBits.ValheimMods.PortalStation {
@@ -9,6 +8,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     /// Logic for personal teleportation device GUI.
     /// </summary>
     public class PersonalTeleportationDeviceGUI : BaseTeleportationGUI {
+        private PortalStation.Destination teleportBackPoint;
         private ItemDrop.ItemData device;
 
         /// <summary>
@@ -16,7 +16,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         public override int GetFuelAmount() {
             var user = CurrentUser;
-            return user ? PersonalTeleportationDevice.GetFuelAmount(user) : 0;
+            return user == null ? 0 : PersonalTeleportationDevice.GetFuelAmount(user);
         }
         
         /// <summary>
@@ -37,45 +37,53 @@ namespace UndeadBits.ValheimMods.PortalStation {
             
             return PersonalTeleportationDevice.CalculateFuelCost(this.device, distance);
         }
-
+        
         /// <summary>
         /// Shows the GUI.
         /// </summary>
         public void Open(Humanoid user, ItemDrop.ItemData item) {
             this.device = item;
+            this.teleportBackPoint = DeserializeTeleportBackPoint(user.m_nview);
             
             OpenGUI(user);
         }
 
         /// <summary>
-        /// Gets all available destinations to travel to.
+        /// Deserializes the "teleport back" point from the given view.
         /// </summary>
-        protected override IEnumerable<PortalStation.Destination> GetDestinations() {
-            var user = CurrentUser;
-            if (user) {
-                var view = user.GetComponent<ZNetView>();
-                var worldId = ZNet.instance.GetWorldUID();
-                
-                if (view && view.IsValid() && worldId != 0) {
-                    var travelBackDestinationBase64 = view.GetZDO().GetString(PersonalTeleportationDevice.PROP_TELEPORT_BACK_POINT);
-                    Vector3 position;
-                    Quaternion rotation;
-
-                    if (PersonalTeleportationDevice.DeserializeTeleportBackPoint(travelBackDestinationBase64, out position, out rotation)) {
-                        yield return new PortalStation.Destination(ZDOID.None) {
-                            position = position,
-                            rotation = rotation,
-                            stationName = PortalStationPlugin.Localization.TryTranslate("$travel_back"),
-                        };
-                    }
-                }
+        private static PortalStation.Destination DeserializeTeleportBackPoint(ZNetView view) {
+            if (!view || !view.IsValid()) {
+                return null;
             }
 
-            foreach (var item in base.GetDestinations()) {
-                yield return item;
+            var travelBackDestinationBase64 = view.GetZDO().GetString(PersonalTeleportationDevice.PROP_TELEPORT_BACK_POINT);
+            Vector3 position;
+            Quaternion rotation;
+
+            if (PersonalTeleportationDevice.DeserializeTeleportBackPoint(travelBackDestinationBase64, out position, out rotation)) {
+                return new PortalStation.Destination(ZDOID.None) {
+                    position = position,
+                    rotation = rotation,
+                    stationName = PortalStationPlugin.Localization.TryTranslate("$travel_back"),
+                };
             }
+
+            return null;
         }
+        
+        /// <summary>
+        /// Updates the list of destinations to which the user can travel.
+        /// </summary>
+        protected override void UpdateDestinationList(List<PortalStation.Destination> destinations) {
+            destinations.Clear();
 
+            if (this.teleportBackPoint != null) {
+                destinations.Add(this.teleportBackPoint);
+            }
+
+            destinations.AddRange(PortalStationPlugin.Instance.AvailableDestinations);
+        }
+        
         /// <summary>
         /// Closes the GUI
         /// </summary>

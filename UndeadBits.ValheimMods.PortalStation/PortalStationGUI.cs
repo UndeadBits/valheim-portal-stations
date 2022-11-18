@@ -12,6 +12,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     /// </summary>
     public class PortalStationGUI : BaseTeleportationGUI {
         private PortalStation currentPortalStation;
+        private ZNetView currentPortalStationView;
         private InputField stationNameInput;
 
         /// <summary>
@@ -19,6 +20,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         public void Open(Humanoid user, PortalStation station) {
             this.currentPortalStation = station;
+            this.currentPortalStationView = station.GetComponent<ZNetView>();
             
             OpenGUI(user);
             
@@ -57,6 +59,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             base.Close();
 
             this.currentPortalStation = null;
+            this.currentPortalStationView = null;
         }
 
         /// <summary>
@@ -72,7 +75,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         protected override void Awake() {
             base.Awake();
             
-            this.stationNameInput = RequireComponentByName<InputField>("$part_PortalStationName", false);
+            this.stationNameInput = RequireComponentByName<InputField>("$part_PortalStationName");
             if (this.stationNameInput) {
                 this.stationNameInput.onEndEdit.AddListener(OnEndEdit);
             }
@@ -90,8 +93,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return;
             }
             
-            var view = this.currentPortalStation.GetComponent<ZNetView>();
-            if (!view || !view.IsValid()) {
+            if (!this.currentPortalStationView || !this.currentPortalStationView.IsValid()) {
                 Close();
             }
         }
