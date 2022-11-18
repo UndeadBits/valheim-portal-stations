@@ -84,17 +84,24 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 }
 
                 if (this.fuelCostText) {
-                    this.fuelCostText.text = $"{cost}";
+                    var costText = cost.ToString();
+                    if (this.fuelCostText.text != costText) {
+                        this.fuelCostText.text = costText;
+                    }
+                    
                     this.fuelCostText.color = affordable ? this.originalFuelColor : Color.red;
                 }
             }
 
-            if (this.teleportButton) {
+            if (this.teleportButton && this.teleportButton.interactable != affordable) {
                 this.teleportButton.interactable = affordable;
             }
             
             if (this.stationNameText) {
-                this.stationNameText.text = this.destination == null ? "N/A" : this.destination.stationName;
+                var newStationNameText = this.destination == null ? "N/A" : this.destination.stationName;
+                if (this.stationNameText.text != newStationNameText) {
+                    this.stationNameText.text = newStationNameText;
+                }
             }
         }
 

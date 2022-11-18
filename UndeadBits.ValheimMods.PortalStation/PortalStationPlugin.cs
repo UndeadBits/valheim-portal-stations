@@ -6,8 +6,8 @@ using Jotunn.Entities;
 using Jotunn.Managers;
 using Jotunn.Utils;
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -22,10 +22,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
     internal class PortalStationPlugin : BaseUnityPlugin {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
-        public const string PLUGIN_VERSION = "0.9.0";
+        public const string PLUGIN_VERSION = "0.10.0";
 
         private const float STATION_SYNC_INTERVAL = 1.0f;
 
+        #region Configuration
+        
         private const string CONFIG_SECTION_GENERAL = "General";
         private const string CONFIG_SECTION_PERSONAL_TELEPORTATION_DEVICE = "PersonalTeleportationDevice";
         
@@ -45,16 +47,24 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private const string CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE_DESC = "The additional teleportation distance per device upgrade.";
         private const float CONFIG_KEY_ADDITIONAL_TELEPORTATION_DISTANCE_PER_UPGRADE_DEFAULT_VALUE = 1000;
         
+        #endregion
+
         public static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
         
         private readonly Harmony harmony = new Harmony(PLUGIN_GUID); 
 
-        private readonly List<PortalStation.Destination> availableDestinations = new List<PortalStation.Destination>();
-        private readonly Dictionary<ZDOID, PortalStation.Destination> serverPortalStations = new Dictionary<ZDOID, PortalStation.Destination>();
-
+        private readonly Dictionary<ZDOID, PortalStation.Destination> destinationCache = new Dictionary<ZDOID, PortalStation.Destination>();
+        private readonly Stack<ZDOID> removedZDOs = new Stack<ZDOID>();
+        private readonly List<PortalStation.Destination> sortedDestinations = new List<PortalStation.Destination>();
+        private readonly ZPackage cachedDestinationPackage = new ZPackage();
         private readonly List<ZDO> tempZDOList = new List<ZDO>();
+        private readonly HashSet<string> tempStationNames = new HashSet<string>();
+        private readonly List<ZDO> tempSyncList = new List<ZDO>();
+        private readonly Dictionary<ZDOID, ZDO> tempAvailablePortalStationZDOs = new Dictionary<ZDOID, ZDO>();
+
         private AssetBundle assetBundle;
         private GameObject portalStationPrefab;
+        private int portalStationPrefabHash;
         private CustomPiece portalStationPiece;
         
         private GameObject portalStationGUIPrefab;
@@ -77,7 +87,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private string fuelItemName;
         private ItemDrop fuelItem;
         private bool useFuel;
-
 
         #region Harmony Patches
         
@@ -132,7 +141,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         */
 
         #endregion
-        
+
         /// <summary>
         /// Gets the current plugin instance.
         /// </summary>
@@ -150,7 +159,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Gets the available destinations to teleport to.
         /// </summary>
         public IReadOnlyList<PortalStation.Destination> AvailableDestinations {
-            get { return this.availableDestinations; }
+            get { return this.sortedDestinations; }
         }
 
         /// <summary>
@@ -201,12 +210,18 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// FIXME: This must be done on the server side
         /// </summary>
         public string CreateStationName() {
-            var stationNames = new HashSet<string>(GetPortalStationZDOs().Select(x => x.GetString(PortalStation.PROP_STATION_NAME)));
+            TryGetStationNames(this.tempStationNames);
+            
             var stationNumber = 1;
+            var template = Localization.TryTranslate("$auto_portal_station_name");
+            if (!template.Contains("{0}")) {
+                Jotunn.Logger.LogWarning("Localization value for $auto_portal_station_name must contain a placeholder for the station number ({{0}})");
+                template = $"{template} {{0}}";
+            }
 
             while (true) {
-                var stationName = String.Format(Localization.TryTranslate("$auto_portal_station_name"), stationNumber++);
-                if (stationNames.Contains(stationName)) {
+                var stationName = String.Format(template, stationNumber++);
+                if (this.tempStationNames.Contains(stationName)) {
                     continue;
                 }
 
@@ -269,7 +284,17 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="stationId">The stations id</param>
         /// <returns>The station or null if not found</returns>
         public PortalStation.Destination GetPortalStation(ZDOID stationId) {
-            return this.availableDestinations.FirstOrDefault(x => x.id == stationId);
+            if (this.destinationCache.ContainsKey(stationId)) {
+                return this.destinationCache[stationId];
+            }
+            
+            foreach (var destination in this.sortedDestinations) {
+                if (destination.id == stationId) {
+                    return destination;
+                }
+            }
+            
+            return null;
         }
 
         /// <summary>
@@ -314,8 +339,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             AddConfigKeys();
             AddPortalStationPiece();
             AddPersonalTeleportationDevice();
-
-            InvokeRepeating(nameof(SyncAvailablePortalStations), STATION_SYNC_INTERVAL, STATION_SYNC_INTERVAL);
+            // InvokeRepeating(nameof(SyncAvailablePortalStations), STATION_SYNC_INTERVAL, STATION_SYNC_INTERVAL);
         }
 
         /// <summary>
@@ -337,8 +361,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Resets the plugin data.
         /// </summary>
         private void ClearCachedData() {
-            this.serverPortalStations.Clear();
-            this.availableDestinations.Clear();
+            this.destinationCache.Clear();
+            this.sortedDestinations.Clear();
             this.tempZDOList.Clear();
 
             if (this.portalStationGUIInstance) {
@@ -351,17 +375,42 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
-        /// Gets all portal station ZDOs.
-        /// This will only yield all available portal stations on the server because on the client only the current region is known.
+        /// Tries to gets all portal station names.
         /// </summary>
-        private IEnumerable<ZDO> GetPortalStationZDOs() {
-            tempZDOList.Clear();
-
-            if (this.portalStationPrefab && ZDOMan.instance != null) {
-                ZDOMan.instance.GetAllZDOsWithPrefab(this.portalStationPrefab.name, tempZDOList);
+        /// <remarks>
+        /// This will only yield all available portal stations on the server because
+        /// the client does not sync the whole world.
+        /// </remarks>
+        private bool TryGetStationNames(HashSet<string> set) {
+            if (!TryGetPortalStationZDOs(this.tempZDOList)) {
+                return false;
             }
 
-            return this.tempZDOList;
+            set.Clear();
+            
+            foreach (var zdo in this.tempZDOList) {
+                set.Add(zdo.GetString(PortalStation.PROP_STATION_NAME));
+            }
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Tries to gets all portal station ZDOs.
+        /// </summary>
+        /// <remarks>
+        /// This will only yield all available portal stations on the server because
+        /// the client does not sync the whole world.
+        /// </remarks>
+        private bool TryGetPortalStationZDOs(ICollection<ZDO> list) {
+            list.Clear();
+
+            if (this.portalStationPrefab && ZDOMan.instance != null) {
+                ZDOMan.instance.GetAllZDOsWithPrefab(this.portalStationPrefab.name, this.tempZDOList);
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -440,6 +489,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
             this.portalStationPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation.prefab");
             this.portalStationPrefab.AddComponent<PortalStation>();
+            this.portalStationPrefabHash = this.portalStationPrefab.name.GetStableHashCode();
 
             this.portalStationGUIPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation_gui.prefab");
             this.portalStationGUIPrefab.AddComponent<PortalStationGUI>();
@@ -505,6 +555,11 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
                 ClearCachedData();
                 UpdateFuelItem();
+
+                if (ZNet.instance.IsServer()) {
+                    StopCoroutine(nameof(SyncAvailablePortalStationsIterative));
+                    StartCoroutine(nameof(SyncAvailablePortalStationsIterative));
+                }
             } catch (Exception ex) {
                 Jotunn.Logger.LogError($"Unable to register RPCs: {ex.Message}");
             }
@@ -563,7 +618,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Updates available destinations sent from server to a client.
         /// </summary>
         private void RPC_SyncStationList(long sender, ZPackage package) {
-            this.availableDestinations.Clear();
+            if (ZNet.instance.IsServer()) {
+                return;
+            }
+            
+            this.sortedDestinations.Clear();
+            this.destinationCache.Clear();
 
             var count = package.ReadInt();
 
@@ -574,88 +634,116 @@ namespace UndeadBits.ValheimMods.PortalStation {
                     rotation = package.ReadQuaternion(),
                 };
 
-                this.availableDestinations.Add(destination);
+                this.destinationCache[destination.id] = destination;
+                this.sortedDestinations.Add(destination);
             }
             
             ChangeDestinations.Invoke();
         }
 
+        private IEnumerator SyncAvailablePortalStationsIterative() {
+            while (true) {
+                if (ZNet.instance != null && ZNet.instance.IsServer()) {
+                    var index = 0;
+                    var done = false;
+
+                    do {
+                        done = ZDOMan.instance.GetAllZDOsWithPrefabIterative(this.portalStationPrefab.name, this.tempSyncList, ref index);
+                        yield return null;
+                    } while (!done);
+
+                    this.tempAvailablePortalStationZDOs.Clear();
+                    foreach (var zdo in this.tempSyncList) {
+                        this.tempAvailablePortalStationZDOs[zdo.m_uid] = zdo;
+                    }
+
+                    if (this.destinationCache.Count > 0 || this.tempAvailablePortalStationZDOs.Count > 0) {
+                        var removeCount = 0;
+                        var addCount = 0;
+                        var updateCount = 0;
+
+                        // Check for removed stations
+                        foreach (var item in this.destinationCache) {
+                            if (this.tempAvailablePortalStationZDOs.ContainsKey(item.Key)) {
+                                continue;
+                            }
+
+                            this.sortedDestinations.Remove(item.Value);
+                            this.removedZDOs.Push(item.Key);
+                            removeCount++;
+                        }
+
+                        // Remove items 
+                        while (this.removedZDOs.Count > 0) {
+                            var key = this.removedZDOs.Pop();
+                            this.destinationCache.Remove(key);
+                        }
+
+                        // Check for added stations and update existing ones
+                        foreach (var item in this.tempAvailablePortalStationZDOs) {
+                            PortalStation.Destination destination;
+                            if (this.destinationCache.ContainsKey(item.Key)) {
+                                // Check for updated stations
+                                destination = this.destinationCache[item.Key];
+                                if (destination.UpdateFromZDO()) {
+                                    updateCount++;
+                                }
+
+                                continue;
+                            }
+
+                            destination = new PortalStation.Destination(item.Value);
+
+                            this.destinationCache.Add(item.Key, destination);
+                            this.sortedDestinations.Add(destination);
+
+                            addCount++;
+                        }
+
+                        if (removeCount > 0 || addCount > 0 || updateCount > 0) {
+                            // sort destination list
+                            this.sortedDestinations.Sort(SortByStationName);
+
+                            // update destination data
+                            this.cachedDestinationPackage.Clear();
+                            this.cachedDestinationPackage.Write(this.sortedDestinations.Count);
+
+                            foreach (var destination in this.sortedDestinations) {
+                                this.cachedDestinationPackage.Write(destination.id);
+                                this.cachedDestinationPackage.Write(destination.stationName);
+                                this.cachedDestinationPackage.Write(destination.position);
+                                this.cachedDestinationPackage.Write(destination.rotation);
+                            }
+
+                            // notify all peers about the change
+                            SendDestinationsToClient(ZRoutedRpc.Everybody);
+
+                            // notify ourself if we are client and server
+                            ChangeDestinations.Invoke();
+                        }
+                    }
+                }
+
+                yield return new WaitForSeconds(STATION_SYNC_INTERVAL);
+            }
+        }
+
         /// <summary>
-        /// Synchronizes portal stations from server to clients if necessary.
+        /// Sorting method for sorting destinations by station name.
         /// </summary>
-        private void SyncAvailablePortalStations() {
-            if (ZNet.instance == null || !ZNet.instance.IsServer() && !ZNet.instance.IsDedicated()) {
-                return;
-            }
-            
-            var available = new HashSet<ZDO>(GetPortalStationZDOs(), new ZDOComparer());
-            var availableZDOIds = new HashSet<ZDOID>(available.Select(x => x.m_uid));
-            if (this.serverPortalStations.Count == 0 && available.Count == 0) {
-                return;
-            }
-            
-            var current = new HashSet<ZDOID>(this.serverPortalStations.Keys);
-            var removeCount = 0;
-            var addCount = 0;
-            var updateCount = 0;
-            
-            // Check for removed stations
-            foreach (var item in current) {
-                if (availableZDOIds.Contains(item)) {
-                    continue;
-                }
-
-                this.serverPortalStations.Remove(item);
-                removeCount++;
-            }
-            
-            // Check for added stations
-            foreach (var item in available) {
-                if (current.Contains(item.m_uid)) {
-                    continue;
-                }
-
-                this.serverPortalStations.Add(item.m_uid, new PortalStation.Destination(item));
-
-                addCount++;
-            }
-            
-            // Check for updated stations
-            foreach (var item in this.serverPortalStations) {
-                if (item.Value.UpdateFromZDO()) {
-                    updateCount++;
-                }
-            }
-
-            if (removeCount > 0 || addCount > 0 || updateCount > 0) {
-                SendDestinationsToClient(ZRoutedRpc.Everybody);
-            }
+        private static int SortByStationName(PortalStation.Destination x, PortalStation.Destination y) {
+            return String.CompareOrdinal(x.stationName, y.stationName);
         }
 
         /// <summary>
         /// Sends the current list of portal station destinations to the given client.
         /// </summary>
         private void SendDestinationsToClient(long target) {
-            var destinations = this.serverPortalStations.Values   
-                .OrderBy(x => x.stationName ?? "")
-                .ToList();
-            
-            var package = new ZPackage();
-            package.Write(destinations.Count);
-
-            foreach (var destination in destinations) {
-                package.Write(destination.id);
-                package.Write(destination.stationName);
-                package.Write(destination.position);
-                package.Write(destination.rotation);
+            if (this.cachedDestinationPackage.Size() == 0) {
+                return;
             }
             
-            ZRoutedRpc.instance.InvokeRoutedRPC(target, nameof(RPC_SyncStationList), package);
-            
-            this.availableDestinations.Clear();
-            this.availableDestinations.AddRange(destinations);
-            
-            ChangeDestinations.Invoke();
+            ZRoutedRpc.instance.InvokeRoutedRPC(target, nameof(RPC_SyncStationList), this.cachedDestinationPackage);
         }
     }
 }

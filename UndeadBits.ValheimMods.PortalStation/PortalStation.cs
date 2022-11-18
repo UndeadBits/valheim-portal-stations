@@ -8,7 +8,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     /// Logic for portal station objects.
     /// </summary>
     public class PortalStation : MonoBehaviour, Interactable, Hoverable {
-        public const string PROP_STATION_NAME = "stationName";
+        public static readonly int PROP_STATION_NAME = "stationName".GetStableHashCode();
         public const float USE_DISTANCE = 5.0f;
 
         private const float PORTAL_EXIT_DISTANCE = 1.0f;

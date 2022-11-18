@@ -11,7 +11,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// The property which is used to remember the last position from which a user has teleported itself.
         /// </summary>
-        public const string PROP_TELEPORT_BACK_POINT = "lastTeleportationPoint";
+        public static readonly int PROP_TELEPORT_BACK_POINT = "lastTeleportationPoint".GetStableHashCode();
         
         /// <summary>
         /// The name of the item.
