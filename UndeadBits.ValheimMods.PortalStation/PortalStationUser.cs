@@ -9,7 +9,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     public class PortalStationUser : MonoBehaviour {
         private Humanoid player;
         private ZNetView view;
-        
+
         /// <summary>
         /// Uses the station.
         /// </summary>

@@ -59,8 +59,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
             this.gameObject.SetActive(true);
 
-            foreach (var item in this.destinationItems) {
-                Destroy(item.gameObject);
+            foreach (var destinationItem in this.GetComponentsInChildren<DestinationItem>(true)) {
+                Destroy(destinationItem.gameObject);
             }
             
             this.destinationItems.Clear();

@@ -43,7 +43,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         public void Open(Humanoid user, ItemDrop.ItemData item) {
             this.device = item;
-            this.teleportBackPoint = DeserializeTeleportBackPoint(user.m_nview);
+            this.teleportBackPoint = DeserializeTeleportBackPoint(user);
             
             OpenGUI(user);
         }
@@ -51,19 +51,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// Deserializes the "teleport back" point from the given view.
         /// </summary>
-        private static PortalStation.Destination DeserializeTeleportBackPoint(ZNetView view) {
-            if (!view || !view.IsValid()) {
-                return null;
-            }
-
-            var travelBackDestinationBase64 = view.GetZDO().GetString(PersonalTeleportationDevice.PROP_TELEPORT_BACK_POINT);
-            Vector3 position;
-            Quaternion rotation;
-
-            if (PersonalTeleportationDevice.DeserializeTeleportBackPoint(travelBackDestinationBase64, out position, out rotation)) {
+        private static PortalStation.Destination DeserializeTeleportBackPoint(Humanoid user) {
+            var deviceUser = user.GetComponent<PersonalTeleportationDeviceUser>();
+            var teleportBackPoint = deviceUser ? deviceUser.TeleportBackPoint : null;
+            if (teleportBackPoint.HasValue) {
                 return new PortalStation.Destination(ZDOID.None) {
-                    position = position,
-                    rotation = rotation,
+                    position = (Vector3)teleportBackPoint.Value.position,
+                    rotation = (Quaternion)teleportBackPoint.Value.rotation,
                     stationName = PortalStationPlugin.Localization.TryTranslate("$travel_back"),
                 };
             }

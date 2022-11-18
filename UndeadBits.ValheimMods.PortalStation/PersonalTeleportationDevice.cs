@@ -7,12 +7,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     /// Logic for using a personal teleportation device.
     /// </summary>
     public static class PersonalTeleportationDevice {
-        
-        /// <summary>
-        /// The property which is used to remember the last position from which a user has teleported itself.
-        /// </summary>
-        public static readonly int PROP_TELEPORT_BACK_POINT = "lastTeleportationPoint".GetStableHashCode();
-        
+
         /// <summary>
         /// The name of the item.
         /// </summary>
@@ -113,40 +108,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             
             inventory.RemoveItem(fuelItem, fuelCost);
             inventory.Changed();
-        }
-
-        /// <summary>
-        /// Serializes position and rotation for the teleport back point.
-        /// </summary>
-        /// <returns>A base64 encoded string</returns>
-        public static string SerializeTeleportBackPoint(Vector3 position, Quaternion rotation) {
-            var package = new ZPackage();
-            package.Write(position);
-            package.Write(rotation);
-                
-            return package.GetBase64();
-        }
-
-        /// <summary>
-        /// Deserializes a travel back destination
-        /// </summary>
-        /// <param name="base64">The base64 encoded string</param>
-        /// <param name="position">Will be set to the position</param>
-        /// <param name="rotation">Will be set to the rotation</param>
-        /// <returns>Whether deserialization was successful or not</returns>
-        public static bool DeserializeTeleportBackPoint(string base64, out Vector3 position, out Quaternion rotation) {
-            if (String.IsNullOrEmpty(base64)) {
-                position = default(Vector3);
-                rotation = default(Quaternion);
-
-                return false;
-            }
-            
-            var package = new ZPackage(Convert.FromBase64String(base64));
-            position = package.ReadVector3();
-            rotation = package.ReadQuaternion();
-
-            return true;
         }
         
     }
