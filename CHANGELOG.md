@@ -1,3 +1,11 @@
+# v0.10.0-beta
+
+## Bug Fixes
+
+- increase scrolling speed and improve scrollbar visuals
+- reset scrollbar position when opening GUI
+- address performance issues
+
 # v0.9.0-beta
 
 ## Features
