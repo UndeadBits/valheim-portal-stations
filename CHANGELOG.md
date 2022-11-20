@@ -1,3 +1,9 @@
+# v0.10.1-beta
+
+## Bug Fixes
+
+- scroll views starting at bottom instead of top
+
 # v0.10.0-beta
 
 ## Bug Fixes
