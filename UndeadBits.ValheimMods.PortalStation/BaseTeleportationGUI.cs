@@ -64,8 +64,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
             
             this.destinationItems.Clear();
-            this.scrollRect.verticalNormalizedPosition = 0;
-            this.scrollRect.horizontalNormalizedPosition = 0;
+            this.scrollRect.verticalNormalizedPosition = 1;
+            this.scrollRect.horizontalNormalizedPosition = 1;
 
             PortalStationPlugin.Instance.RequestPortalStationDestinationsFromServer();
 
