@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace UndeadBits.ValheimMods.PortalStation {
     
@@ -8,7 +9,16 @@ namespace UndeadBits.ValheimMods.PortalStation {
     public class PersonalTeleportationDeviceUser : MonoBehaviour {
         private Humanoid player;
         private ZNetView view;
-        
+        private TeleportBackPoint? teleportBackPoint;
+
+        /// <summary>
+        /// Gets or sets the teleport back point for the player.
+        /// </summary>
+        public TeleportBackPoint? TeleportBackPoint {
+            get { return this.teleportBackPoint; }
+            set { this.teleportBackPoint = value; }
+        }
+
         /// <summary>
         /// Uses the device.
         /// </summary>
@@ -33,6 +43,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private void Awake() {
             this.view = GetComponent<ZNetView>();
             this.player = GetComponent<Humanoid>();
+        }
+
+        private void Start() {
+            PortalStationPlugin.Instance.RequestTeleportBackPointFromServer();
         }
 
         /// <summary>
@@ -74,10 +88,14 @@ namespace UndeadBits.ValheimMods.PortalStation {
             
             PersonalTeleportationDevice.ConsumeFuelAndDurability(player, deviceItem, distance);
 
-            // TODO: This does not stay when logging out and back in
-            var base64 = PersonalTeleportationDevice.SerializeTeleportBackPoint(currentPosition, currentRotation);
-            playerZdo.Set(PersonalTeleportationDevice.PROP_TELEPORT_BACK_POINT, base64);
+            this.teleportBackPoint = new TeleportBackPoint {
+                position = (SerializableVector3)currentPosition,
+                rotation = (SerializableQuaternion)currentRotation
+            };
+            
+            PortalStationPlugin.Instance.SetTeleportBackPoint(currentPosition, currentRotation);
         }
         
     }
+    
 }

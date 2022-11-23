@@ -8,6 +8,8 @@ using Jotunn.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -61,6 +63,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private readonly HashSet<string> tempStationNames = new HashSet<string>();
         private readonly List<ZDO> tempSyncList = new List<ZDO>();
         private readonly Dictionary<ZDOID, ZDO> tempAvailablePortalStationZDOs = new Dictionary<ZDOID, ZDO>();
+        private PortalStationDb db;
 
         private AssetBundle assetBundle;
         private GameObject portalStationPrefab;
@@ -115,8 +118,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
             // ReSharper disable once InconsistentNaming
             // ReSharper disable once UnusedMember.Local
             private static void Awake(Humanoid __instance) {
-                __instance.gameObject.AddComponent<PortalStationUser>();
-                __instance.gameObject.AddComponent<PersonalTeleportationDeviceUser>();
+                if (!__instance.gameObject.GetComponent<PortalStationUser>()) {
+                    __instance.gameObject.AddComponent<PortalStationUser>();
+                }
+
+                if (!__instance.gameObject.GetComponent<PersonalTeleportationDeviceUser>()) {
+                    __instance.gameObject.AddComponent<PersonalTeleportationDeviceUser>();
+                }
             }
         }
         
@@ -279,6 +287,22 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
+        /// Requests the last teleport back point from the server for the current player.
+        /// </summary>
+        public void RequestTeleportBackPointFromServer() {
+            if (ZNet.instance.IsServer()) {
+                LoadTeleportBackPointForLocalPlayer();
+            } else {
+                var playerId = GetPlayerId();
+                if (String.IsNullOrEmpty(playerId)) {
+                    return;
+                }
+                
+                ZRoutedRpc.instance.InvokeRoutedRPC(nameof(RPC_RequestTeleportBackPoint), playerId);
+            }
+        }
+        
+        /// <summary>
         /// Gets a portal station by the given station Id.
         /// </summary>
         /// <param name="stationId">The stations id</param>
@@ -323,11 +347,51 @@ namespace UndeadBits.ValheimMods.PortalStation {
             return true;
         }
 
+        public void SetTeleportBackPoint(Vector3 position, Quaternion rotation) {
+            if (ZNet.instance.IsServer()) {
+                var key = GetLocalPlayerSaveKey();
+                if (String.IsNullOrEmpty(key)) {
+                    Jotunn.Logger.LogDebug("Can't save local player data: no player or world id");
+                    return;
+                }
+                
+                this.db.SetTeleportBackPoint(key, position, rotation);
+                this.db.Save();
+            } else {
+                var playerId = GetPlayerId();
+                if (String.IsNullOrEmpty(playerId)) {
+                    Jotunn.Logger.LogDebug("Can't save local player data: no player id");
+                    return;
+                }
+                
+                ZRoutedRpc.instance.InvokeRoutedRPC(nameof(RPC_SetTeleportBackPoint), playerId, position, rotation);
+            }
+        }
+
+        /// <summary>
+        /// Gets the plugins directory.
+        /// </summary>
+        private string GetPluginPath() {
+            return Path.GetDirectoryName(Info.Location);
+        }
+
+        /// <summary>
+        /// Gets the plugins database path.
+        /// </summary>
+        private string GetDbPath() {
+            var bepInExPath = Path.GetDirectoryName(typeof(BepInPlugin).Assembly.Location) ?? "";
+            var dataPath = Path.Combine(bepInExPath, "..", "portal-stations-data");
+            
+            return Path.GetFullPath(dataPath);
+        }
+
         /// <summary>
         /// Initializes the plugin.
         /// </summary>
         private void Awake() {
             this.harmony.PatchAll();
+            this.db = new PortalStationDb(GetDbPath());
+            this.db.Load();
             
             Instance = this;
 
@@ -549,6 +613,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
                 if (ZNet.instance.IsServer()) {
                     ZRoutedRpc.instance.Register(nameof(RPC_RequestStationList), RPC_RequestStationList);
+                    ZRoutedRpc.instance.Register<string, Vector3, Quaternion>(nameof(RPC_SetTeleportBackPoint), RPC_SetTeleportBackPoint);
                 }
                 
                 ZRoutedRpc.instance.Register<ZPackage>(nameof(RPC_SyncStationList), RPC_SyncStationList);
@@ -607,6 +672,26 @@ namespace UndeadBits.ValheimMods.PortalStation {
             SendDestinationsToClient(peer);
         }
 
+        private void RPC_SetTeleportBackPoint(long sender, string playerId, Vector3 position, Quaternion rotation) {
+            Jotunn.Logger.LogDebug($"Got teleport back point from remote client {sender}");
+
+            if (!ZNet.instance.IsServer()) {
+                Jotunn.Logger.LogError($"Can't save teleport back point for remote client {playerId} - not a server");
+                return;
+            }
+
+            var worldId = GetWorldId();
+            if (String.IsNullOrEmpty(worldId)) {
+                Jotunn.Logger.LogError($"Can't save teleport back point for remote client {playerId} - no world id");
+                return;
+            }
+
+            var key = $"{worldId}::{playerId}";
+            
+            this.db.SetTeleportBackPoint(key, position, rotation);
+            this.db.Save();
+        }
+        
         /// <summary>
         /// Requests the server to send the current list of destinations to the sender.
         /// </summary>
@@ -614,6 +699,37 @@ namespace UndeadBits.ValheimMods.PortalStation {
             SendDestinationsToClient(sender);
         }
 
+        /// <summary>
+        /// Requests the server to send the last teleport back point to the given player.
+        /// </summary>
+        private void RPC_RequestTeleportBackPoint(long sender, string playerId) {
+            var worldId = GetWorldId();
+            var key = $"{worldId}::{playerId}";
+            
+            Vector3 position;
+            Quaternion rotation;
+            if (!this.db.TryGetTeleportBackPoint(key, out position, out rotation)) {
+                return;
+            }
+
+            Jotunn.Logger.LogDebug($"Sending teleport back point to client #{sender}");
+            ZRoutedRpc.instance.InvokeRoutedRPC(sender, nameof(RPC_SyncTeleportBackPoint), position, rotation);
+        }
+        
+        private void RPC_SyncTeleportBackPoint(long sender, Vector3 position, Quaternion rotation) {
+            Jotunn.Logger.LogInfo("Got teleport back point from server.");
+            
+            var player = Player.m_localPlayer;
+            var user = player == null ? null : player.GetComponent<PersonalTeleportationDeviceUser>();
+
+            if (user) {
+                user.TeleportBackPoint = new TeleportBackPoint {
+                    position = (SerializableVector3)position,
+                    rotation = (SerializableQuaternion)rotation
+                };
+            }
+        }
+        
         /// <summary>
         /// Updates available destinations sent from server to a client.
         /// </summary>
@@ -747,6 +863,60 @@ namespace UndeadBits.ValheimMods.PortalStation {
             
             ZRoutedRpc.instance.InvokeRoutedRPC(target, nameof(RPC_SyncStationList), this.cachedDestinationPackage);
         }
+
+        private string GetWorldId() {
+            if (!ZNet.instance) {
+                return null;
+            }
+
+            return ZNet.instance.GetWorldUID().ToString();
+        }
+        
+        private string GetPlayerId() {
+            if (!Game.instance) {
+                return null;
+            }
+            
+            var playerProfile = Game.instance.GetPlayerProfile();
+            if (playerProfile == null) {
+                return null;
+            }
+            
+            return playerProfile.m_playerID.ToString();
+        }
+
+        private string GetLocalPlayerSaveKey() {
+            var playerId = GetPlayerId();
+            if (String.IsNullOrEmpty(playerId)) {
+                return null;
+            }
+            
+            var worldId = GetWorldId();
+            if (String.IsNullOrEmpty(worldId)) {
+                return null;
+            }
+            
+            return $"{worldId}::{playerId}";
+        }
+        
+        private void LoadTeleportBackPointForLocalPlayer() {
+            var key = GetLocalPlayerSaveKey();
+            if (String.IsNullOrEmpty(key)) {
+                Jotunn.Logger.LogDebug("Can't save local player data: no world or player id");
+                return;
+            }
+                        
+            Vector3 position;
+            Quaternion rotation;
+            if (!this.db.TryGetTeleportBackPoint(key, out position, out rotation)) {
+                return;
+            }
+
+            Jotunn.Logger.LogDebug($"Loaded teleport back point for local player #{key}");
+
+            RPC_SyncTeleportBackPoint(0, position, rotation);
+        }
+        
     }
 }
 

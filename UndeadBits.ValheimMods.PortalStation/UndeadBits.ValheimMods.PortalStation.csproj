@@ -72,6 +72,10 @@
     <Reference Include="MonoMod.Utils, Version=22.1.29.1, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\MonoMod.Utils.22.1.29.1\lib\net452\MonoMod.Utils.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -89,11 +93,15 @@
     <Compile Include="PersonalTeleportationDeviceGUI.cs" />
     <Compile Include="PersonalTeleportationDeviceUser.cs" />
     <Compile Include="PortalStation.cs" />
+    <Compile Include="PortalStationData.cs" />
+    <Compile Include="PortalStationDb.cs" />
     <Compile Include="PortalStationGUI.cs" />
     <Compile Include="PortalStationUser.cs" />
     <Compile Include="Properties\IgnoreAccessModifiers.cs" />
     <Compile Include="PortalStationPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SerializableQuaternion.cs" />
+    <Compile Include="SerializableVector3.cs" />
     <Compile Include="UIElementBase.cs" />
   </ItemGroup>
   <ItemGroup>

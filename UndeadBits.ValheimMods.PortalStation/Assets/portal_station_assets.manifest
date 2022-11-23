@@ -1,12 +1,12 @@
 ManifestFileVersion: 0
-CRC: 2031501611
+CRC: 365826495
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: df07ccc84c351bf0c1399f1dd1413074
+    Hash: 376fd0ae909b5804e510aad3521fb9b7
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 31ed21b782732d0ba18517180e871b47
+    Hash: cd37c1621ac3510c25687cb5d6b24231
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -42,6 +42,8 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 11500000, guid: 1aa08ab6e0800fa44ae55d278d1423e3, type: 3}
 - Class: 114
+  Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+- Class: 114
   Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 4eff91178cefece49a722af7e1fdb5e6, type: 3}
@@ -59,8 +61,6 @@ ClassTypes:
   Script: {fileID: 11500000, guid: 4b26b22706e178241a9150f1d3f55174, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 2a4db7a114972834c8e4117be1d82ba3, type: 3}
-- Class: 114
-  Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 9f6d310b791b3d148a9422330dcd4abc, type: 3}
 - Class: 114
@@ -133,6 +133,7 @@ SerializeReferenceClassIdentifiers:
 - AssemblyName: assembly_valheim
   ClassName: ItemDrop/ItemData/SharedData
 Assets:
+- Assets/Prefabs/DataPoint.prefab
 - Assets/Prefabs/PortalStation_GUI.prefab
 - Assets/Prefabs/Item_PersonalTeleportationDevice.prefab
 - Assets/Prefabs/PersonalTeleportationDevice_GUI.prefab
