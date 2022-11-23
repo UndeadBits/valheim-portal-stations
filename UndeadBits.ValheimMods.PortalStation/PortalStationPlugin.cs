@@ -647,6 +647,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
                     var index = 0;
                     var done = false;
 
+                    this.tempSyncList.Clear();
+                    
                     do {
                         done = ZDOMan.instance.GetAllZDOsWithPrefabIterative(this.portalStationPrefab.name, this.tempSyncList, ref index);
                         yield return null;
