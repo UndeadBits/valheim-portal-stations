@@ -1,3 +1,9 @@
+# v0.10.2-beta
+
+## Bug Fixes
+
+- memory leak in portal station sync coroutine
+
 # v0.10.1-beta
 
 ## Bug Fixes
