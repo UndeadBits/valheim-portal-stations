@@ -31,7 +31,7 @@ Push-Location -Path (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
 # Plugin name without ".dll"
 $name = "$TargetAssembly" -Replace('.dll')
-$preReleaseTag = "-beta"
+$preReleaseTag = ""
 
 # Create the mdb file
 $pdb = "$TargetPath\$name.pdb"
