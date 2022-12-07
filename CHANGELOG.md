@@ -1,16 +1,23 @@
-# v0.10.2-beta
+# v0.11.0
+
+## Features
+
+- upgrade to valheim v212.7 (mistlands)
+- removed prerelease labels
+
+# v0.10.2
 
 ## Bug Fixes
 
 - memory leak in portal station sync coroutine
 
-# v0.10.1-beta
+# v0.10.1
 
 ## Bug Fixes
 
 - scroll views starting at bottom instead of top
 
-# v0.10.0-beta
+# v0.10.0
 
 ## Bug Fixes
 
@@ -18,14 +25,14 @@
 - reset scrollbar position when opening GUI
 - address performance issues
 
-# v0.9.0-beta
+# v0.9.0
 
 ## Features
 
 - add configuration options
 - add "teleport back" option to personal teleportation device
 
-# v0.8.0-beta
+# v0.8.0
 
 ## Features
 
@@ -36,7 +43,7 @@
 - personal teleportation device not craftable at forge
 - reduce slowdowns caused by this mod
 
-# v0.7.0-beta
+# v0.7.0
 
 ## Features
 
@@ -47,13 +54,13 @@
 
 - disable scrollbar rubberbanding
 
-# v0.6.2-alpha
+# v0.6.2
 
 ## Bug Fixes
 
 - improve scrollbar speed and colors
 
-# v0.6.1-alpha
+# v0.6.1
 
 ## Bug Fixes
 
@@ -71,7 +78,7 @@
 
 - add attributions to README.md
 
-# v0.5.0-alpha
+# v0.5.0
 
 ## Features
 
@@ -84,13 +91,13 @@
 - portal station has no create, damage or destruction effect
 - station name not set when built
 
-# v0.4.2-alpha
+# v0.4.2
 
 ## Bug Fixes
 
 - station renaming not possible (again)
 
-# v0.4.1-alpha
+# v0.4.1
 
 ## Features
 
@@ -101,19 +108,19 @@
 - sync station renames in destination list
 - station renaming not possible
 
-# v0.3.0-alpha
+# v0.3.0
 
 ## Bug Fixes
 
 - sync list of destinations from server to clients
 
-# v0.2.0-alpha
+# v0.2.0
 
 ## Features
 
 - resource usage set to 25 stone, 20 greydwarf eyes and 4 surtling cores
 
-# v0.1.0-alpha
+# v0.1.0
 
 ## Features
 
@@ -126,6 +133,6 @@
 - station not dropping resources when destroyed
 - resource usage set to 25 stone, 20 greydwarf eyes and 3 surtling cores
 
-# v0.0.1-dev
+# v0.0.1
 
 ## Initial version
