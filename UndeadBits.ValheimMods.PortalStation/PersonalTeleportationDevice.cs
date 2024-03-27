@@ -11,7 +11,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// The property which is used to remember the last position from which a user has teleported itself.
         /// </summary>
-        public static readonly int PROP_TELEPORT_BACK_POINT = "lastTeleportationPoint".GetStableHashCode();
+        public static readonly int kPropTeleportBackPoint = "lastTeleportationPoint".GetStableHashCode();
         
         /// <summary>
         /// The name of the item.
@@ -30,11 +30,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
 
             var fuelItem = PortalStationPlugin.Instance.FuelItemId;
-            if (String.IsNullOrEmpty(fuelItem)) {
-                return 0;
-            }
-
-            return inventory.CountItems(fuelItem);
+            return String.IsNullOrEmpty(fuelItem) ? 0 : inventory.CountItems(fuelItem);
         }
         
         /// <summary>
@@ -53,16 +49,15 @@ namespace UndeadBits.ValheimMods.PortalStation {
             
             return Mathf.Max(1, Mathf.CeilToInt(distance / travelDistancePerFuelItem));
         }
-        
+
         /// <summary>
         /// Invoked when the player wants to use the object.
         /// </summary>
         /// <param name="user">The user</param>
-        /// <param name="inventory">The inventory of the user</param>
         /// <param name="item">The item data</param>
-        public static void UseItem(Humanoid user, Inventory inventory, ItemDrop.ItemData item) {
+        public static void UseItem(Humanoid user, ItemDrop.ItemData item) {
             if (item.m_durability < item.m_shared.m_durabilityDrain) {
-                Jotunn.Logger.LogDebug($"Repair is needed");
+                Jotunn.Logger.LogDebug("Repair is needed");
                 return;
             }
             
@@ -83,11 +78,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             var fuelCost = CalculateFuelCost(device, distance);
             var affordable = fuelCost <= GetFuelAmount(player);
 
-            if (!affordable) {
-                return false;
-            }
-                
-            return true;
+            return affordable;
         }
 
         /// <summary>
@@ -136,8 +127,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <returns>Whether deserialization was successful or not</returns>
         public static bool DeserializeTeleportBackPoint(string base64, out Vector3 position, out Quaternion rotation) {
             if (String.IsNullOrEmpty(base64)) {
-                position = default(Vector3);
-                rotation = default(Quaternion);
+                position = default;
+                rotation = default;
 
                 return false;
             }

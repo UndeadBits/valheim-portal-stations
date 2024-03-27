@@ -1,8 +1,4 @@
-﻿using Jotunn.Managers;
-using System;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.EventSystems;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 namespace UndeadBits.ValheimMods.PortalStation {
@@ -119,7 +115,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             }
 
             if (this.currentPortalStation) {
-                return this.currentPortalStation.StationId != destination.id;
+                return this.currentPortalStation.StationId != destination.ID;
             }
 
             return true;

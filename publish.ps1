@@ -33,6 +33,9 @@ Push-Location -Path (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $name = "$TargetAssembly" -Replace('.dll')
 $preReleaseTag = ""
 
+# Additional references
+$references = @("MonoMod.Backports")
+
 # Create the mdb file
 $pdb = "$TargetPath\$name.pdb"
 if (Test-Path -Path "$pdb") {
@@ -56,6 +59,11 @@ if ($Target.Equals("Debug")) {
     Copy-Item -Path "$TargetPath\$name.pdb" -Destination "$plug" -Force
     Copy-Item -Path "$TargetPath\$name.dll.mdb" -Destination "$plug" -Force
     
+    foreach ($ref in $references) {
+        Copy-Item -Path "$TargetPath\$ref.dll" -Destination "$plug" -Force
+        Copy-Item -Path "$TargetPath\$ref.pdb" -Destination "$plug" -Force
+    }
+
     Copy-Item -Recurse -Path "$ProjectPath\Assets\Translations\" -Destination "$plug\Assets\" -Force
 }
 
@@ -73,6 +81,11 @@ if($Target.Equals("Release")) {
     New-Item -Type Directory -Path "$ProjectPath\..\dist\ThunderStore" -Force
     
     Copy-Item -Path "$TargetPath\$TargetAssembly" -Destination "$PackagePath\plugins\$PackageName\$TargetAssembly" -Force
+    
+    foreach ($ref in $references) {
+        Copy-Item -Path "$TargetPath\$ref.dll" -Destination "$PackagePath\plugins\$PackageName" -Force
+    }
+    
     Copy-Item -Path "$ProjectPath\..\CHANGELOG.md" -Destination "$PackagePath\plugins\$PackageName\CHANGELOG.md" -Force
     Copy-Item -Path "$ProjectPath\..\LICENSE" -Destination "$PackagePath\plugins\$PackageName\LICENSE" -Force
     Copy-Item -Recurse -Path "$ProjectPath\Assets\Translations\" -Destination "$PackagePath\plugins\$PackageName\Assets\" -Force

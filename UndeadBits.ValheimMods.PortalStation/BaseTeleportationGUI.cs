@@ -12,11 +12,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
     public abstract class BaseTeleportationGUI : UIElementBase {
         private const float GUI_UPDATE_INTERVAL = 1.0f;
         
-        private readonly LinkedList<DestinationItem> destinationItems = new LinkedList<DestinationItem>();
-        private readonly List<PortalStation.Destination> cachedDestinationList = new List<PortalStation.Destination>();
+        private readonly LinkedList<DestinationItem> destinationItems = new();
+        private readonly List<PortalStation.Destination> cachedDestinationList = new();
 
         private Humanoid currentUser;
-        private ZNetView currentUserZNetView;
         private RectTransform destinationItemListRoot;
         private ScrollRect scrollRect;
         private bool blockUserInput;
@@ -44,19 +43,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         /// <summary>
-        /// Gets the ZNetView of the user which is currently using the GUI.
-        /// </summary>
-        protected ZNetView CurrentUserView {
-            get { return this.currentUserZNetView; }
-        }
-        
-        /// <summary>
         /// Shows the GUI.
         /// </summary>
         protected void OpenGUI(Humanoid user) {
             this.currentUser = user;
-            this.currentUserZNetView = user.m_nview;
-
             this.gameObject.SetActive(true);
 
             foreach (var item in this.destinationItems) {
@@ -72,10 +62,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
             UpdateDestinationList(this.cachedDestinationList);
             UpdateDestinationItems();
 
-            if (!this.blockUserInput) {
-                this.blockUserInput = true;
-                GUIManager.BlockInput(true);
+            if (this.blockUserInput) {
+                return;
             }
+
+            this.blockUserInput = true;
+            GUIManager.BlockInput(true);
         }
         
         /// <summary>
@@ -85,10 +77,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.currentUser = null;
             this.gameObject.SetActive(false);
 
-            if (this.blockUserInput) {
-                this.blockUserInput = false;
-                GUIManager.BlockInput(false);
+            if (!this.blockUserInput) {
+                return;
             }
+
+            this.blockUserInput = false;
+            GUIManager.BlockInput(false);
         }
 
         /// <summary>
@@ -185,11 +179,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="destination">The destination to teleport to</param>
         /// <returns>Whether teleportation is possible or not</returns>
         protected virtual bool CanTeleport(PortalStation.Destination destination) {
-            if (!this.currentUser) {
-                return false;
-            }
-
-            return PortalStationPlugin.Instance.CanTeleportPlayer(this.currentUser);
+            return this.currentUser && PortalStationPlugin.Instance.CanTeleportPlayer(this.currentUser);
         }
 
         /// <summary>

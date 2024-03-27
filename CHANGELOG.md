@@ -1,3 +1,20 @@
+# v0.12.0
+
+## Features
+
+- upgrade plugin to BepInEx v5.4.2202
+- upgrade plugin to Valheim v0.217.38 (network version 20)
+- upgrade plugin to Jotunn v2.15.0
+- upgrade assets to Unity v2022.3.12
+
+## Bug Fixes
+
+- fix exception when accessing portal station UI
+- fix null reference exception when closing game
+- fix confusing warnings when starting the game
+- fix MonoMod.Backports.dll not found when trying to teleport via portal station
+- fix a lot of code smells detected by ReSharper
+
 # v0.11.0
 
 ## Features

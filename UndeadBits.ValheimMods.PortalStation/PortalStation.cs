@@ -8,7 +8,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     /// Logic for portal station objects.
     /// </summary>
     public class PortalStation : MonoBehaviour, Interactable, Hoverable {
-        public static readonly int PROP_STATION_NAME = "stationName".GetStableHashCode();
+        public static readonly int kPropStationName = "stationName".GetStableHashCode();
         public const float USE_DISTANCE = 5.0f;
 
         private const float PORTAL_EXIT_DISTANCE = 1.0f;
@@ -23,35 +23,35 @@ namespace UndeadBits.ValheimMods.PortalStation {
             /// <summary>
             /// The ZDOID of the portal which this destination represents.
             /// </summary>
-            public readonly ZDOID id;
+            public readonly ZDOID ID;
         
             /// <summary>
             /// The station name.
             /// </summary>
-            public string stationName;
+            public string StationName;
         
             /// <summary>
             /// The teleportation position.
             /// </summary>
-            public Vector3 position;
+            public Vector3 Position;
 
             /// <summary>
             /// The teleportation rotation.
             /// </summary>
-            public Quaternion rotation;
+            public Quaternion Rotation;
 
             /// <summary>
             /// The stations ZDO object.
             /// Only available on the server.
             /// </summary>
-            public ZDO stationZDO;
+            private readonly ZDO stationZDO;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="Destination"/> type.
             /// </summary>
             /// <param name="id">The id to set</param>
             public Destination(ZDOID id) {
-                this.id = id;
+                this.ID = id;
             }
             
             /// <summary>
@@ -59,7 +59,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             /// </summary>
             /// <param name="stationZDO">The ZDO to copy from</param>
             public Destination(ZDO stationZDO) {
-                this.id = stationZDO.m_uid;
+                this.ID = stationZDO.m_uid;
                 this.stationZDO = stationZDO;
 
                 UpdateInternal(true);
@@ -68,36 +68,32 @@ namespace UndeadBits.ValheimMods.PortalStation {
             /// <summary>
             /// Updates position, rotation and name from the given ZDO.
             /// </summary>
-            /// <param name="stationZDO">The ZDO to copy from</param>
             /// <returns>Whether changes where detected</returns>
             public bool UpdateFromZDO() {
-                if (this.stationZDO == null) {
-                    return false;
-                }
-
-                return UpdateInternal(false);
+                return this.stationZDO != null && this.UpdateInternal(false);
             }
             
             private bool UpdateInternal(bool force) {
                 var updated = false;
-                var newStationName = this.stationZDO.GetString(PROP_STATION_NAME);
-                if (force || newStationName != this.stationName) {
-                    this.stationName = newStationName;
+                var newStationName = this.stationZDO.GetString(kPropStationName);
+                if (force || newStationName != this.StationName) {
+                    this.StationName = newStationName;
                     updated = true;
                 }
 
-                if (force || Quaternion.Angle(this.rotation, stationZDO.GetRotation()) > 0.1f) {
-                    this.rotation = stationZDO.GetRotation();
+                if (force || Quaternion.Angle(this.Rotation, this.stationZDO.GetRotation()) > 0.1f) {
+                    this.Rotation = this.stationZDO.GetRotation();
                     updated = true;
                 }
 
-                var teleportPos = this.stationZDO.GetPosition() + this.rotation * Vector3.forward * PORTAL_EXIT_DISTANCE + Vector3.up;
-                if (force || Vector3.Distance(this.position, teleportPos) > 0.1f) {
-                    this.position = teleportPos;
-                    updated = true;
+                var teleportPos = this.stationZDO.GetPosition() + this.Rotation * Vector3.forward * PORTAL_EXIT_DISTANCE + Vector3.up;
+                if (!force && !(Vector3.Distance(this.Position, teleportPos) > 0.1f)) {
+                    return updated;
                 }
 
-                return updated;
+                this.Position = teleportPos;
+
+                return true;
             }
 
             #region Auto Generated Code
@@ -108,11 +104,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                     return false;
                 }
 
-                if (ReferenceEquals(this, other)) {
-                    return true;
-                }
-
-                return this.id.Equals(other.id);
+                return ReferenceEquals(this, other) || this.ID.Equals(other.ID);
             }
 
             public override bool Equals(object obj)
@@ -125,16 +117,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
                     return true;
                 }
 
-                if (obj.GetType() != this.GetType()) {
-                    return false;
-                }
-
-                return Equals((Destination)obj);
+                return obj.GetType() == this.GetType() && this.Equals((Destination)obj);
             }
 
             public override int GetHashCode()
             {
-                return this.id.GetHashCode();
+                return this.ID.GetHashCode();
             }
 
             public static bool operator ==(Destination left, Destination right)
@@ -213,7 +201,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         public string GetStationName() {
             var zdo = this.view == null ? null : this.view.GetZDO();
-            return zdo == null ? "" : zdo.GetString(PROP_STATION_NAME);
+            return zdo == null ? "" : zdo.GetString(kPropStationName);
         }
         
         /// <summary>
@@ -237,10 +225,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         public Destination AsDestination() {
             var destination = PortalStationPlugin.Instance.GetPortalStation(StationId);
-            if (destination == null && this.view != null) {
-                Jotunn.Logger.LogWarning("Creating temporary destination");
-                destination = new Destination(this.view.m_zdo);
+            if (destination != null || this.view == null) {
+                return destination;
             }
+
+            Jotunn.Logger.LogWarning("Creating temporary destination");
+            destination = new Destination(this.view.m_zdo);
 
             return destination;
         }
@@ -256,9 +246,9 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 this.enabled = false;
                 return;
             }
-
-            if (zdo.IsOwner() && String.IsNullOrEmpty(zdo.GetString(PROP_STATION_NAME, null))) {
-                zdo.Set(PROP_STATION_NAME, PortalStationPlugin.Instance.CreateStationName());
+            
+            if (zdo.IsOwner() && String.IsNullOrEmpty(zdo.GetString(kPropStationName, null))) {
+                zdo.Set(kPropStationName, PortalStationPlugin.Instance.CreateStationName());
             }
 
             this.view.Register<string>(nameof(RPC_SetStationName), RPC_SetStationName);
@@ -272,7 +262,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return;
             }
 
-            this.view.GetZDO().Set(PROP_STATION_NAME, value);
+            this.view.GetZDO().Set(kPropStationName, value);
 
             if (GUIManager.IsHeadless()) {
                 return;
