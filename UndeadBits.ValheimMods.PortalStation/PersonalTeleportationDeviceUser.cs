@@ -16,12 +16,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="target">The destination to travel to</param>
         public void Use(ItemDrop.ItemData deviceItem, PortalStation.Destination target) {
             if (!this.view || !this.view.IsValid()) {
-                Jotunn.Logger.LogWarning($"Can't use device - player object not valid.");
+                Jotunn.Logger.LogWarning("Can't use device - player object not valid.");
                 return;
             }
             
             if (!this.view.IsOwner()) {
-                Jotunn.Logger.LogWarning($"Can't use device - player is not the owner.");
+                Jotunn.Logger.LogWarning("Can't use device - player is not the owner.");
             } else {
                 UseDevice(deviceItem, target);
             }
@@ -42,32 +42,32 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="target">The destination to travel to</param>
         private void UseDevice(ItemDrop.ItemData deviceItem, PortalStation.Destination target) {
             if (!this.player || !this.view) {
-                Jotunn.Logger.LogWarning($"Can't use device - player object not valid.");
+                Jotunn.Logger.LogWarning("Can't use device - player object not valid.");
                 return;
             }
             
             var playerZdo = this.view.IsValid() ? this.view.GetZDO() : null;
             if (playerZdo == null) {
-                Jotunn.Logger.LogWarning($"Can't use device - ZDO not valid.");
+                Jotunn.Logger.LogWarning("Can't use device - ZDO not valid.");
                 return;
             }
 
             if (!PortalStationPlugin.Instance.CanTeleportPlayer(this.player)) {
-                Jotunn.Logger.LogWarning($"Can't use device - player not teleportable.");
+                Jotunn.Logger.LogWarning("Can't use device - player not teleportable.");
                 return;
             }
 
             var currentPosition = playerZdo.GetPosition();
             var currentRotation = playerZdo.GetRotation();
-            var distance = Vector3.Distance(currentPosition, target.position);
+            var distance = Vector3.Distance(currentPosition, target.Position);
             var distant = distance >= ZoneSystem.instance.m_zoneSize;
             
             if (!PersonalTeleportationDevice.CanPlayerUseDevice(player, deviceItem, distance)) {
-                Jotunn.Logger.LogWarning($"Can't use device - not affordable.");
+                Jotunn.Logger.LogWarning("Can't use device - not affordable.");
                 return;
             }
 
-            if (!player.TeleportTo(target.position, target.rotation, distant)) {
+            if (!player.TeleportTo(target.Position, target.Rotation, distant)) {
                 Jotunn.Logger.LogError("Unable to teleport player.");
                 return;
             }
@@ -76,7 +76,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
             // TODO: This does not stay when logging out and back in
             var base64 = PersonalTeleportationDevice.SerializeTeleportBackPoint(currentPosition, currentRotation);
-            playerZdo.Set(PersonalTeleportationDevice.PROP_TELEPORT_BACK_POINT, base64);
+            playerZdo.Set(PersonalTeleportationDevice.kPropTeleportBackPoint, base64);
         }
         
     }

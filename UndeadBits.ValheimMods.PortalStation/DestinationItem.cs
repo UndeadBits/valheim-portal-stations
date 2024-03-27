@@ -1,6 +1,4 @@
-﻿using Jotunn.Managers;
-using System;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
@@ -22,7 +20,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Raised when the "teleport" button has been clicked. 
         /// </summary>
         /// ReSharper disable once InconsistentNaming
-        public readonly UnityEvent<PortalStation.Destination> onClick = new UnityEvent<PortalStation.Destination>();
+        public readonly UnityEvent<PortalStation.Destination> onClick = new();
         
         /// <summary>
         /// Sets the destination which this item represents.
@@ -96,12 +94,14 @@ namespace UndeadBits.ValheimMods.PortalStation {
             if (this.teleportButton && this.teleportButton.interactable != affordable) {
                 this.teleportButton.interactable = affordable;
             }
-            
-            if (this.stationNameText) {
-                var newStationNameText = this.destination == null ? "N/A" : this.destination.stationName;
-                if (this.stationNameText.text != newStationNameText) {
-                    this.stationNameText.text = newStationNameText;
-                }
+
+            if (!this.stationNameText) {
+                return;
+            }
+
+            var newStationNameText = this.destination == null ? "N/A" : this.destination.StationName;
+            if (this.stationNameText.text != newStationNameText) {
+                this.stationNameText.text = newStationNameText;
             }
         }
 

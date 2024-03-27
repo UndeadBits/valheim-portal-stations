@@ -22,7 +22,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
     internal class PortalStationPlugin : BaseUnityPlugin {
         private const string PLUGIN_GUID = "com.undeadbits.valheimmods.portalstation";
         private const string PLUGIN_NAME = "PortalStation";
-        public const string PLUGIN_VERSION = "0.11.0";
+        public const string PLUGIN_VERSION = "0.12.0";
 
         private const float STATION_SYNC_INTERVAL = 1.0f;
 
@@ -49,22 +49,21 @@ namespace UndeadBits.ValheimMods.PortalStation {
         
         #endregion
 
-        public static readonly CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+        public static readonly CustomLocalization kLocalization = LocalizationManager.Instance.GetLocalization();
         
-        private readonly Harmony harmony = new Harmony(PLUGIN_GUID); 
+        private readonly Harmony harmony = new(PLUGIN_GUID); 
 
-        private readonly Dictionary<ZDOID, PortalStation.Destination> destinationCache = new Dictionary<ZDOID, PortalStation.Destination>();
-        private readonly Stack<ZDOID> removedZDOs = new Stack<ZDOID>();
-        private readonly List<PortalStation.Destination> sortedDestinations = new List<PortalStation.Destination>();
-        private readonly ZPackage cachedDestinationPackage = new ZPackage();
-        private readonly List<ZDO> tempZDOList = new List<ZDO>();
-        private readonly HashSet<string> tempStationNames = new HashSet<string>();
-        private readonly List<ZDO> tempSyncList = new List<ZDO>();
-        private readonly Dictionary<ZDOID, ZDO> tempAvailablePortalStationZDOs = new Dictionary<ZDOID, ZDO>();
+        private readonly Dictionary<ZDOID, PortalStation.Destination> destinationCache = new();
+        private readonly Stack<ZDOID> removedZDOs = new();
+        private readonly List<PortalStation.Destination> sortedDestinations = new();
+        private readonly ZPackage cachedDestinationPackage = new();
+        private readonly List<ZDO> tempZDOList = new();
+        private readonly HashSet<string> tempStationNames = new();
+        private readonly List<ZDO> tempSyncList = new();
+        private readonly Dictionary<ZDOID, ZDO> tempAvailablePortalStationZDOs = new();
 
         private AssetBundle assetBundle;
         private GameObject portalStationPrefab;
-        private int portalStationPrefabHash;
         private CustomPiece portalStationPiece;
         
         private GameObject portalStationGUIPrefab;
@@ -87,8 +86,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private string fuelItemName;
         private ItemDrop fuelItem;
         private bool useFuel;
+        private bool destroyed;
 
-        #region Harmony Patches
         
         [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.UseItem))]
         // ReSharper disable once InconsistentNaming
@@ -97,12 +96,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
             // ReSharper disable once InconsistentNaming
             // ReSharper disable once UnusedMember.Local
             // ReSharper disable once UnusedParameter.Local
-            private static bool UseItem(Inventory inventory, ItemDrop.ItemData item, bool fromInventoryGui, Humanoid __instance) {
+            private static bool UseItem(Inventory inventory, ItemDrop.ItemData item, /* ReSharper disable once UnusedParameter.Local */ bool fromInventoryGui, Humanoid __instance) {
                 if (item.m_shared.m_name != PersonalTeleportationDevice.ITEM_NAME) {
                     return true;
                 }
 
-                PersonalTeleportationDevice.UseItem(__instance, inventory, item);
+                PersonalTeleportationDevice.UseItem(__instance, item);
 
                 return false;
             }
@@ -114,6 +113,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             [HarmonyPrefix]
             // ReSharper disable once InconsistentNaming
             // ReSharper disable once UnusedMember.Local
+            // ReSharper disable once SuggestBaseTypeForParameter
             private static void Awake(Humanoid __instance) {
                 __instance.gameObject.AddComponent<PortalStationUser>();
                 __instance.gameObject.AddComponent<PersonalTeleportationDeviceUser>();
@@ -140,8 +140,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
         */
 
-        #endregion
-
         /// <summary>
         /// Gets the current plugin instance.
         /// </summary>
@@ -153,22 +151,15 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <summary>
         /// Raised every time when a client received a new destination list from the server.
         /// </summary>
-        public readonly UnityEvent ChangeDestinations = new UnityEvent();
+        public readonly UnityEvent ChangeDestinations = new();
 
         /// <summary>
         /// Gets the available destinations to teleport to.
         /// </summary>
-        public IReadOnlyList<PortalStation.Destination> AvailableDestinations {
+        public IEnumerable<PortalStation.Destination> AvailableDestinations {
             get { return this.sortedDestinations; }
         }
-
-        /// <summary>
-        /// Gets the name of the fuel item to use for the personal teleportation device.
-        /// </summary>
-        public string FuelItemName {
-            get { return this.fuelItemName; }
-        }
-
+        
         /// <summary>
         /// Gets the name of the fuel item to use for the personal teleportation device.
         /// </summary>
@@ -210,17 +201,19 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// FIXME: This must be done on the server side
         /// </summary>
         public string CreateStationName() {
-            TryGetStationNames(this.tempStationNames);
-            
             var stationNumber = 1;
-            var template = Localization.TryTranslate("$auto_portal_station_name");
-            if (!template.Contains("{0}")) {
-                Jotunn.Logger.LogWarning("Localization value for $auto_portal_station_name must contain a placeholder for the station number ({{0}})");
-                template = $"{template} {{0}}";
+            var template = kLocalization.TryTranslate("$auto_portal_station_name");
+            if (!template.Contains("PS_NUM")) {
+                Jotunn.Logger.LogWarning("Localization value for $auto_portal_station_name must contain a placeholder for the station number (PS_NUM)");
+                template = $"{template} PS_NUM";
+            }
+            
+            if (!TryGetStationNames(this.tempStationNames)) {
+                return template.Replace("PS_NUM", stationNumber.ToString("D2"));
             }
 
             while (true) {
-                var stationName = String.Format(template, stationNumber++);
+                var stationName = template.Replace("PS_NUM", (stationNumber++).ToString("D2"));
                 if (this.tempStationNames.Contains(stationName)) {
                     continue;
                 }
@@ -233,6 +226,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Creates a new teleport destination item.
         /// </summary>
         public DestinationItem CreatePSDestinationItem(RectTransform parent) {
+            if (this.destroyed) {
+                return null;
+            }
+
             var instance = Instantiate(this.portalStationDestinationItemPrefab);
             instance.GetComponent<RectTransform>().SetParent(parent, false);
 
@@ -243,6 +240,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Creates a new teleport destination item.
         /// </summary>
         public DestinationItem CreatePTDDestinationItem(RectTransform parent) {
+            if (this.destroyed) {
+                return null;
+            }
+
             var instance = Instantiate(this.personalTeleportationDeviceGUIDestinationItemPrefab);
             instance.GetComponent<RectTransform>().SetParent(parent, false);
 
@@ -253,6 +254,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Gets the portal station GUI instance.
         /// </summary>
         public PortalStationGUI GetPortalStationGUI() {
+            if (this.destroyed) {
+                return null;
+            }
+            
             if (!this.portalStationGUIInstance) {
                 this.portalStationGUIInstance = CreatePortalStationGUI();
             }
@@ -264,6 +269,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Gets the personal teleportation device GUI instance.
         /// </summary>
         public PersonalTeleportationDeviceGUI GetPersonalTeleportationDeviceGUIInstance() {
+            if (this.destroyed) {
+                return null;
+            }
+
             if (!this.personalTeleportationDeviceGUIInstance) {
                 this.personalTeleportationDeviceGUIInstance = CreatePersonalTeleportationDeviceGUIInstance();
             }
@@ -275,6 +284,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Requests current list of portal station destinations from the server,
         /// </summary>
         public void RequestPortalStationDestinationsFromServer() {
+            if (this.destroyed) {
+                return;
+            }
+
             ZRoutedRpc.instance.InvokeRoutedRPC(nameof(RPC_RequestStationList));
         }
 
@@ -284,12 +297,17 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="stationId">The stations id</param>
         /// <returns>The station or null if not found</returns>
         public PortalStation.Destination GetPortalStation(ZDOID stationId) {
-            if (this.destinationCache.ContainsKey(stationId)) {
-                return this.destinationCache[stationId];
+            if (this.destroyed) {
+                return null;
+            }
+
+            if (this.destinationCache.TryGetValue(stationId, out var station)) {
+                return station;
             }
             
+            // ReSharper disable once ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator no LINQ in frequently called functions
             foreach (var destination in this.sortedDestinations) {
-                if (destination.id == stationId) {
+                if (destination.ID == stationId) {
                     return destination;
                 }
             }
@@ -303,6 +321,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// <param name="player">The player</param>
         /// <returns>Whether teleportation is allowed or not</returns>
         public bool CanTeleportPlayer(Humanoid player) {
+            if (this.destroyed) {
+                return false;
+            }
+
             if (ZoneSystem.instance.GetGlobalKey("noportals")) {
                 if (player) {
                     player.Message(MessageHud.MessageType.Center, "$msg_blocked");
@@ -354,6 +376,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         private void OnDestroy() {
             this.harmony.UnpatchSelf();
+            this.destroyed = true;
             this.ClearCachedData();
         }
 
@@ -381,7 +404,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// This will only yield all available portal stations on the server because
         /// the client does not sync the whole world.
         /// </remarks>
-        private bool TryGetStationNames(HashSet<string> set) {
+        private bool TryGetStationNames(ISet<string> set) {
             if (!TryGetPortalStationZDOs(this.tempZDOList)) {
                 return false;
             }
@@ -389,7 +412,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
             set.Clear();
             
             foreach (var zdo in this.tempZDOList) {
-                set.Add(zdo.GetString(PortalStation.PROP_STATION_NAME));
+                set.Add(zdo.GetString(PortalStation.kPropStationName));
             }
             
             return true;
@@ -405,12 +428,16 @@ namespace UndeadBits.ValheimMods.PortalStation {
         private bool TryGetPortalStationZDOs(ICollection<ZDO> list) {
             list.Clear();
 
-            if (this.portalStationPrefab && ZDOMan.instance != null) {
-                ZDOMan.instance.GetAllZDOsWithPrefab(this.portalStationPrefab.name, this.tempZDOList);
-                return true;
+            if (!this.portalStationPrefab || ZDOMan.instance == null) {
+                return false;
             }
 
-            return false;
+            var index = 0;
+            while (ZDOMan.instance.GetAllZDOsWithPrefabIterative(this.portalStationPrefab.name, this.tempZDOList, ref index)) {
+                // repeat until all portal station ZDOs are retrieved
+            }
+            return true;
+
         }
 
         /// <summary>
@@ -444,8 +471,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// </summary>
         private void AddConfigKeys() {
             Config.SaveOnConfigSet = true;
-            Config.ConfigReloaded += (s, e) => UpdateFuelItem();
-            Config.SettingChanged += (s, e) => UpdateFuelItem();
+            Config.ConfigReloaded += (_, _) => UpdateFuelItem();
+            Config.SettingChanged += (_, _) => UpdateFuelItem();
             
             this.ignoreTeleportationRestrictionsConfigEntry = Config.Bind(
                 CONFIG_SECTION_GENERAL,
@@ -461,7 +488,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 new ConfigDescription(CONFIG_KEY_PERSONAL_TELEPORTATION_DEVICE_FUEL_ITEM_NAME_DESC, null, new ConfigurationManagerAttributes {
                     IsAdminOnly = true
                 }));
-            this.fuelItemNameConfigEntry.SettingChanged += (s, e) => UpdateFuelItem();
+            this.fuelItemNameConfigEntry.SettingChanged += (_, _) => UpdateFuelItem();
             
             this.teleportationDistancePerFuelItemConfigEntry = Config.Bind(
                 CONFIG_SECTION_PERSONAL_TELEPORTATION_DEVICE,
@@ -486,20 +513,19 @@ namespace UndeadBits.ValheimMods.PortalStation {
             if (PieceManager.Instance.GetPiece("$piece_portal_station") != null) {
                 return;
             }
-
-            this.portalStationPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation.prefab");
+            
+            this.portalStationPrefab = this.assetBundle.LoadAsset<GameObject>("assets/portalstationassets/prefabs/portalstation.prefab");
             this.portalStationPrefab.AddComponent<PortalStation>();
-            this.portalStationPrefabHash = this.portalStationPrefab.name.GetStableHashCode();
 
-            this.portalStationGUIPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation_gui.prefab");
+            this.portalStationGUIPrefab = this.assetBundle.LoadAsset<GameObject>("assets/portalstationassets/prefabs/portalstation_gui.prefab");
             this.portalStationGUIPrefab.AddComponent<PortalStationGUI>();
 
-            this.portalStationDestinationItemPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/portalstation_gui_stationitem.prefab");
+            this.portalStationDestinationItemPrefab = this.assetBundle.LoadAsset<GameObject>("assets/portalstationassets/prefabs/portalstation_gui_stationitem.prefab");
             this.portalStationDestinationItemPrefab.AddComponent<DestinationItem>();
 
             var config = new PieceConfig {
                 PieceTable = "Hammer",
-                CraftingStation = "piece_workbench",
+                CraftingStation = "piece_workbench"
             };
 
             config.AddRequirement(new RequirementConfig("Stone", 20, 0, true));
@@ -514,12 +540,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Adds and configures the personal teleportation device item.
         /// </summary>
         private void AddPersonalTeleportationDevice() {
-            this.personalTeleportationDevicePrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/item_personalteleportationdevice.prefab");
+            this.personalTeleportationDevicePrefab = this.assetBundle.LoadAsset<GameObject>("assets/portalstationassets/prefabs/item_personalteleportationdevice.prefab");
             
-            this.personalTeleportationDeviceGUIPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/personalteleportationdevice_gui.prefab");
+            this.personalTeleportationDeviceGUIPrefab = this.assetBundle.LoadAsset<GameObject>("assets/portalstationassets/prefabs/personalteleportationdevice_gui.prefab");
             this.personalTeleportationDeviceGUIPrefab.AddComponent<PersonalTeleportationDeviceGUI>();
 
-            this.personalTeleportationDeviceGUIDestinationItemPrefab = this.assetBundle.LoadAsset<GameObject>("assets/prefabs/personalteleportationdevice_gui_stationitem.prefab");
+            this.personalTeleportationDeviceGUIDestinationItemPrefab = this.assetBundle.LoadAsset<GameObject>("assets/portalstationassets/prefabs/personalteleportationdevice_gui_stationitem.prefab");
             this.personalTeleportationDeviceGUIDestinationItemPrefab.AddComponent<DestinationItem>();
 
             var config = new ItemConfig {
@@ -556,10 +582,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 ClearCachedData();
                 UpdateFuelItem();
 
-                if (ZNet.instance.IsServer()) {
-                    StopCoroutine(nameof(SyncAvailablePortalStationsIterative));
-                    StartCoroutine(nameof(SyncAvailablePortalStationsIterative));
+                if (!ZNet.instance.IsServer()) {
+                    return;
                 }
+
+                this.StopCoroutine(nameof(this.SyncAvailablePortalStationsIterative));
+                this.StartCoroutine(nameof(this.SyncAvailablePortalStationsIterative));
             } catch (Exception ex) {
                 Jotunn.Logger.LogError($"Unable to register RPCs: {ex.Message}");
             }
@@ -572,7 +600,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.fuelItemName = this.fuelItemNameConfigEntry?.Value;
             
             if (String.IsNullOrEmpty(this.fuelItemName)) {
-                Jotunn.Logger.LogWarning($"No fuel item configured, personal teleportation device will not cost anything.");
                 this.fuelItem = null;
                 this.useFuel = false;
                 return;            
@@ -581,7 +608,6 @@ namespace UndeadBits.ValheimMods.PortalStation {
             this.useFuel = true;
 
             if (ObjectDB.instance == null) {
-                Jotunn.Logger.LogWarning($"ObjectDB not ready.");
                 return;
             }
 
@@ -629,12 +655,12 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
             for (var i = 0; i < count; i++) {
                 var destination = new PortalStation.Destination(package.ReadZDOID()) {
-                    stationName = package.ReadString(),
-                    position = package.ReadVector3(),
-                    rotation = package.ReadQuaternion(),
+                    StationName = package.ReadString(),
+                    Position = package.ReadVector3(),
+                    Rotation = package.ReadQuaternion()
                 };
 
-                this.destinationCache[destination.id] = destination;
+                this.destinationCache[destination.ID] = destination;
                 this.sortedDestinations.Add(destination);
             }
             
@@ -642,10 +668,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
         }
 
         private IEnumerator SyncAvailablePortalStationsIterative() {
-            while (true) {
+            while (!this.destroyed) {
                 if (ZNet.instance != null && ZNet.instance.IsServer()) {
                     var index = 0;
-                    var done = false;
+                    bool done;
 
                     this.tempSyncList.Clear();
                     
@@ -665,6 +691,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                         var updateCount = 0;
 
                         // Check for removed stations
+                        // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
                         foreach (var item in this.destinationCache) {
                             if (this.tempAvailablePortalStationZDOs.ContainsKey(item.Key)) {
                                 continue;
@@ -683,10 +710,8 @@ namespace UndeadBits.ValheimMods.PortalStation {
 
                         // Check for added stations and update existing ones
                         foreach (var item in this.tempAvailablePortalStationZDOs) {
-                            PortalStation.Destination destination;
-                            if (this.destinationCache.ContainsKey(item.Key)) {
+                            if (this.destinationCache.TryGetValue(item.Key, out var destination)) {
                                 // Check for updated stations
-                                destination = this.destinationCache[item.Key];
                                 if (destination.UpdateFromZDO()) {
                                     updateCount++;
                                 }
@@ -711,10 +736,10 @@ namespace UndeadBits.ValheimMods.PortalStation {
                             this.cachedDestinationPackage.Write(this.sortedDestinations.Count);
 
                             foreach (var destination in this.sortedDestinations) {
-                                this.cachedDestinationPackage.Write(destination.id);
-                                this.cachedDestinationPackage.Write(destination.stationName);
-                                this.cachedDestinationPackage.Write(destination.position);
-                                this.cachedDestinationPackage.Write(destination.rotation);
+                                this.cachedDestinationPackage.Write(destination.ID);
+                                this.cachedDestinationPackage.Write(destination.StationName);
+                                this.cachedDestinationPackage.Write(destination.Position);
+                                this.cachedDestinationPackage.Write(destination.Rotation);
                             }
 
                             // notify all peers about the change
@@ -734,7 +759,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
         /// Sorting method for sorting destinations by station name.
         /// </summary>
         private static int SortByStationName(PortalStation.Destination x, PortalStation.Destination y) {
-            return String.CompareOrdinal(x.stationName, y.stationName);
+            return String.CompareOrdinal(x.StationName, y.StationName);
         }
 
         /// <summary>

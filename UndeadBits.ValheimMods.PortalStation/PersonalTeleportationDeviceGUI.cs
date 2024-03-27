@@ -33,7 +33,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return Int32.MaxValue;
             }
 
-            var distance = Vector3.Distance(user.transform.position, destination.position);
+            var distance = Vector3.Distance(user.transform.position, destination.Position);
             
             return PersonalTeleportationDevice.CalculateFuelCost(this.device, distance);
         }
@@ -56,15 +56,13 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return null;
             }
 
-            var travelBackDestinationBase64 = view.GetZDO().GetString(PersonalTeleportationDevice.PROP_TELEPORT_BACK_POINT);
-            Vector3 position;
-            Quaternion rotation;
+            var travelBackDestinationBase64 = view.GetZDO().GetString(PersonalTeleportationDevice.kPropTeleportBackPoint);
 
-            if (PersonalTeleportationDevice.DeserializeTeleportBackPoint(travelBackDestinationBase64, out position, out rotation)) {
+            if (PersonalTeleportationDevice.DeserializeTeleportBackPoint(travelBackDestinationBase64, out var position, out var rotation)) {
                 return new PortalStation.Destination(ZDOID.None) {
-                    position = position,
-                    rotation = rotation,
-                    stationName = PortalStationPlugin.Localization.TryTranslate("$travel_back"),
+                    Position = position,
+                    Rotation = rotation,
+                    StationName = PortalStationPlugin.kLocalization.TryTranslate("$travel_back")
                 };
             }
 
@@ -115,7 +113,7 @@ namespace UndeadBits.ValheimMods.PortalStation {
                 return false;
             }
 
-            var distance = Vector3.Distance(user.transform.position, destination.position);
+            var distance = Vector3.Distance(user.transform.position, destination.Position);
 
             return PersonalTeleportationDevice.CanPlayerUseDevice(user, this.device, distance);
         }

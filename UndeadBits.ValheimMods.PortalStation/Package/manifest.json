@@ -1,9 +1,9 @@
 ﻿{
   "name": "PortalStations",
   "description": "",
-  "version_number": "0.0.1",
+  "version_number": "0.12.0",
   "website_url": "",
   "dependencies": [
-    "ValheimModding-Jotunn-2.7.9"
+    "ValheimModding-Jotunn-2.18.1"
   ]
 }

@@ -1,4 +1,5 @@
-﻿namespace UndeadBits.ValheimMods.PortalStation {
+﻿/*
+namespace UndeadBits.ValheimMods.PortalStation {
     
     /// <summary>
     /// Can be used to override an interactables UseItem method.
@@ -16,3 +17,4 @@
         
     }
 }
+*/
